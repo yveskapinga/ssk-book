@@ -74,6 +74,31 @@ tbody tr:last-child td { border-bottom: 0; }
 .result-card dl div { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; border-bottom: 1px solid rgba(24, 63, 53, .1); }
 .result-card dt { color: #66766f; }
 .result-card dd { margin: 0; font-weight: 800; }
+.review-list { display: grid; gap: 16px; }
+.review-card { display: grid; grid-template-columns: minmax(260px,1fr) auto auto; align-items: center; gap: 24px; padding: 22px; border: 1px solid rgba(24,63,53,.12); border-radius: 16px; background:#fffdf8; }
+.review-card h2 { margin: 3px 0; font-family:Georgia,serif; }
+.review-card p,.review-card small { margin:0;color:#66766f; }
+.review-progress { display:grid; gap:3px; text-align:right; }
+.review-progress span { color:#66766f;font-size:.8rem; }
+.row-actions { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:9px; border-top:1px solid rgba(24,63,53,.1); padding-top:15px; }
+.row-actions button { border:1px solid #cad2cd; border-radius:999px; padding:8px 13px; background:white; cursor:pointer; }
+.row-actions button:disabled { opacity:.4;cursor:not-allowed; }
+.chunk-preview { grid-column:1/-1;padding-top:8px; }
+.chunk-preview details { padding:10px 0;border-top:1px solid rgba(24,63,53,.1); }
+.chunk-preview summary { cursor:pointer;font-weight:800;color:#52665f; }
+.chunk-preview p { white-space:pre-wrap;line-height:1.65; }
+.ask-page { max-width:880px; }
+.ask-heading h1 { font-size:clamp(2.8rem,6vw,5rem); }
+.ask-heading p { max-width:680px;color:#66766f;font-size:1.05rem;line-height:1.6; }
+.ask-form { display:flex;align-items:flex-end;gap:12px;margin:34px 0; }
+.ask-form textarea { flex:1;min-height:110px;padding:16px;border:1px solid #cad2cd;border-radius:14px;resize:vertical;font:inherit; }
+.answer-card { padding:28px;border:1px solid rgba(24,63,53,.12);border-radius:20px;background:#fffdf8; }
+.answer-text { font-family:Georgia,serif;font-size:1.3rem;line-height:1.65; }
+.sources { margin-top:28px;padding-top:20px;border-top:1px solid rgba(24,63,53,.1); }
+.sources h2 { font-size:1rem; }
+.sources details { padding:12px 0;border-bottom:1px solid rgba(24,63,53,.1); }
+.sources summary { cursor:pointer;font-weight:800;color:#9a5e24; }
+.sources details p { color:#52665f;line-height:1.7;white-space:pre-wrap; }
 
 @media (max-width: 720px) {
   header { min-height: 68px; padding: 0 20px; }
@@ -82,4 +107,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .page { width: min(100% - 40px, 1120px); padding: 48px 0; }
   .auth-card { padding: 28px 22px; }
   .import-grid { grid-template-columns: 1fr; }
+  .review-card { grid-template-columns:1fr;gap:12px; }
+  .review-progress { text-align:left; }
+  .ask-form { flex-direction:column;align-items:stretch; }
 }

@@ -3,7 +3,9 @@ import { useAuth } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import { AdminBookImportPage } from './pages/AdminBookImportPage'
+import { AdminReviewPage } from './pages/AdminReviewPage'
 import { AuthPage } from './pages/AuthPage'
+import { AskBookPage } from './pages/AskBookPage'
 
 function HomePage() {
   return (
@@ -43,13 +45,16 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/lecture" element={<Placeholder title="Lecture" />} />
-        <Route path="/questions" element={<Placeholder title="Demander au livre" />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/questions" element={<AskBookPage />} />
+        </Route>
         <Route path="/quiz" element={<Placeholder title="Quiz" />} />
         <Route path="/connexion" element={<AuthPage mode="login" />} />
         <Route path="/inscription" element={<AuthPage mode="register" />} />
         <Route element={<ProtectedRoute admin />}>
           <Route path="/admin/utilisateurs" element={<AdminUsersPage />} />
           <Route path="/admin/importer" element={<AdminBookImportPage />} />
+          <Route path="/admin/revue" element={<AdminReviewPage />} />
         </Route>
       </Routes>
     </div>
