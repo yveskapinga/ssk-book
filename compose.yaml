@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: ./api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ssk_book}:${POSTGRES_PASSWORD:-ssk_book}@postgres:5432/${POSTGRES_DB:-ssk_book}?serverVersion=16&charset=utf8
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api:/app
+      - api_vendor:/app/vendor
+      - ./storage/books:/app/var/books
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./web:/app
+      - web_node_modules:/app/node_modules
+    depends_on:
+      - api
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ssk_book}
+      POSTGRES_USER: ${POSTGRES_USER:-ssk_book}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ssk_book}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  api_vendor:
+  web_node_modules:

@@ -1,0 +1,13 @@
+/.env
+/.idea/
+/.vscode/
+/api/.env.local
+/api/vendor/
+/api/var/
+/web/node_modules/
+/web/dist/
+/web/*.tsbuildinfo
+/web/vite.config.js
+/web/vite.config.d.ts
+/storage/books/*
+!/storage/books/.gitkeep

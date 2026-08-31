@@ -1,0 +1,19 @@
+security:
+  password_hashers:
+    Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: auto
+  providers:
+    users_in_memory: { memory: null }
+  firewalls:
+    dev:
+      pattern: ^/(_(profiler|wdt)|css|images|js)/
+      security: false
+    main:
+      lazy: true
+      provider: users_in_memory
+      custom_authenticators:
+        - App\Security\ApiTokenAuthenticator
+  access_control:
+    - { path: ^/api/health, roles: PUBLIC_ACCESS }
+    - { path: ^/api/auth/(register|login)$, roles: PUBLIC_ACCESS }
+    - { path: ^/api/admin, roles: ROLE_ADMIN }
+    - { path: ^/api, roles: ROLE_USER }
