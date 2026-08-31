@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AdminUsersPage } from './pages/AdminUsersPage'
+import { AdminBookImportPage } from './pages/AdminBookImportPage'
 import { AuthPage } from './pages/AuthPage'
 
 function HomePage() {
@@ -35,7 +36,7 @@ export default function App() {
           <NavLink to="/lecture">Lecture</NavLink>
           <NavLink to="/questions">Questions</NavLink>
           <NavLink to="/quiz">Quiz</NavLink>
-          {user?.roles.includes('ROLE_ADMIN') && <NavLink to="/admin/utilisateurs">Administration</NavLink>}
+          {user?.roles.includes('ROLE_ADMIN') && <NavLink to="/admin/importer">Administration</NavLink>}
         </nav>
         {user ? <button className="account" type="button" onClick={() => void logout()}>Se déconnecter</button> : <NavLink className="account" to="/connexion">Se connecter</NavLink>}
       </header>
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/inscription" element={<AuthPage mode="register" />} />
         <Route element={<ProtectedRoute admin />}>
           <Route path="/admin/utilisateurs" element={<AdminUsersPage />} />
+          <Route path="/admin/importer" element={<AdminBookImportPage />} />
         </Route>
       </Routes>
     </div>

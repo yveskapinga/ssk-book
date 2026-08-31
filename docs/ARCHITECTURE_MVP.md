@@ -66,3 +66,7 @@ La console React utilisera des endpoints administratifs dédiés, reposant sur l
 `UPLOADED → EXTRACTING → STRUCTURING → EMBEDDING → REVIEW_REQUIRED → PUBLISHED`
 
 Une version publiée demeure traçable. Toute réingestion produit une nouvelle version au lieu d'écraser silencieusement le contenu publié.
+
+L'import administratif crée d'abord un job `PENDING`. Son exécution extrait le PDF avec Poppler, conserve le texte page par page, normalise le contenu et produit des passages d'environ 2 400 caractères. Le résultat arrive en `REVIEW_REQUIRED` ; aucune version n'est publiée automatiquement.
+
+Les embeddings utilisent une dimension contractuelle de 768. Le modèle et la date d'embedding sont conservés avec chaque passage. Un changement de modèle impose une réindexation explicite.

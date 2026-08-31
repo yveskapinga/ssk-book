@@ -2,7 +2,7 @@ FROM composer:2 AS composer
 
 FROM php:8.3-cli-alpine
 
-RUN apk add --no-cache icu-dev libpq-dev \
+RUN apk add --no-cache icu-dev libpq-dev poppler-utils \
     && docker-php-ext-install intl pdo_pgsql
 
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
