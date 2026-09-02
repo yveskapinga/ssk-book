@@ -1,9 +1,9 @@
-export type ApiErrorBody = { error?: { message?: string } }
+export type ApiErrorBody = { error?: { message?: string; correlationId?: string } }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(message: string, public readonly status: number, public readonly correlationId?: string) {
     super(message)
   }
 }
@@ -19,7 +19,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
 
   const body = await response.json().catch(() => ({})) as ApiErrorBody & T
   if (!response.ok) {
-    throw new ApiError(body.error?.message ?? 'Une erreur est survenue.', response.status)
+    const message = body.error?.message ?? 'Une erreur est survenue.'
+    const correlationId = body.error?.correlationId
+    throw new ApiError(correlationId ? `${message} (${correlationId})` : message, response.status, correlationId)
   }
 
   return body as T

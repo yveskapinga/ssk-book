@@ -16,6 +16,8 @@ final readonly class IngestionService
         private IngestionJobRepository $jobs,
         private PdfTextExtractor $extractor,
         private BookChunker $chunker,
+        private BookStructureDetector $structure,
+        private PageImageService $pageImages,
         private AuditRepository $audit,
     ) {
     }
@@ -25,6 +27,12 @@ final readonly class IngestionService
         $job = $this->jobs->find($jobId);
         if (null === $job) {
             throw new DomainException('Tâche d’ingestion introuvable.', 404);
+        }
+        if ('FAILED' === $job['status']) {
+            if (1 !== $this->jobs->reopenFailed($jobId)) {
+                throw new DomainException('Cette tâche ne peut pas être relancée.', 409);
+            }
+            $job = $this->jobs->find($jobId) ?? $job;
         }
         if ('PENDING' !== $job['status']) {
             throw new DomainException('Cette tâche ne peut plus être démarrée.', 409);
@@ -42,8 +50,9 @@ final readonly class IngestionService
             $this->jobs->progress($jobId, 'STRUCTURING', 45, ['pages' => count($pages)]);
             $this->books->updateVersionStatus($version['id'], 'STRUCTURING');
             $chunks = $this->chunker->chunk($pages);
+            $nodes = $this->structure->detect($pages);
 
-            $this->connection->transactional(function () use ($actor, $jobId, $version, $pages, $chunks): void {
+            $this->connection->transactional(function () use ($actor, $jobId, $version, $pages, $chunks, $nodes): void {
                 $pageRows = array_map(static fn (array $page): array => [
                     'id' => Uuid::v7()->toRfc4122(),
                     'version_id' => $version['id'],
@@ -64,13 +73,29 @@ final readonly class IngestionService
                 ], $chunks);
                 $this->books->replacePages($version['id'], $pageRows);
                 $this->books->replaceChunks($version['id'], $chunkRows);
-                $metrics = ['pages' => count($pages), 'chunks' => count($chunks)];
+                $nodeRows = array_map(static function (array $node): array {
+                    $node['id'] = Uuid::v7()->toRfc4122();
+
+                    return $node;
+                }, $nodes);
+                $this->books->replaceNodes($version['id'], $nodeRows);
+                $metrics = ['pages' => count($pages), 'chunks' => count($chunks), 'nodes' => count($nodeRows)];
                 $this->books->updateVersionStatus($version['id'], 'REVIEW_REQUIRED', count($pages));
                 $this->jobs->complete($jobId, $metrics);
                 $this->audit->append($actor->id, 'BOOK_VERSION_STRUCTURED', 'BOOK_VERSION', $version['id'], $metrics);
             });
 
-            return $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
+            try {
+                $rendered = $this->pageImages->render($actor, $version['id']);
+                $job = $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
+                $job['metrics'] = array_merge(is_array($job['metrics'] ?? null) ? $job['metrics'] : [], $rendered);
+
+                return $job;
+            } catch (\Throwable $exception) {
+                error_log(sprintf('[ssk-book] page render after ingestion failed: %s', $exception->getMessage()));
+
+                return $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
+            }
         } catch (\Throwable $exception) {
             $this->connection->transactional(function () use ($jobId, $version, $exception): void {
                 $this->books->updateVersionStatus($version['id'], 'FAILED');

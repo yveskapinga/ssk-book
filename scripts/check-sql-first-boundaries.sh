@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
+cd "$(dirname "$0")/.."
+
 controller_dir="api/src/Controller"
 
 if grep -R -n -E 'Doctrine\\DBAL|Connection|execute(Query|Statement)|fetch(All|One|Associative)|SELECT |INSERT |UPDATE |DELETE ' "$controller_dir"; then

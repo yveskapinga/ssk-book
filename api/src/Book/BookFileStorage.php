@@ -14,7 +14,20 @@ final readonly class BookFileStorage
 
     public function store(string $versionId, UploadedFile $file): array
     {
-        if (!$file->isValid() || 'application/pdf' !== $file->getMimeType()) {
+        if (!$file->isValid()) {
+            throw new DomainException('Le fichier transmis doit être un PDF valide.');
+        }
+
+        $mime = $file->getClientMimeType();
+        try {
+            $detected = $file->getMimeType();
+            if (is_string($detected) && '' !== $detected) {
+                $mime = $detected;
+            }
+        } catch (\LogicException) {
+        }
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        if ('application/pdf' !== $mime && 'pdf' !== $extension) {
             throw new DomainException('Le fichier transmis doit être un PDF valide.');
         }
         if ($file->getSize() > 50 * 1024 * 1024) {

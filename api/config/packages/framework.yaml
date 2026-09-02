@@ -1,5 +1,7 @@
 framework:
   secret: '%env(APP_SECRET)%'
+  trusted_proxies: '127.0.0.1'
+  trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-host']
   session:
     cookie_secure: auto
     cookie_httponly: true
@@ -10,3 +12,10 @@ framework:
     email_validation_mode: html5
   php_errors:
     log: true
+
+when@test:
+  framework:
+    test: true
+    session:
+      storage_factory_id: session.storage.factory.mock_file
+

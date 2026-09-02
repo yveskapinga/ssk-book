@@ -19,7 +19,7 @@ final readonly class EmbeddingService
         if (!in_array($version['status'], ['REVIEW_REQUIRED', 'EMBEDDING'], true)) throw new DomainException('Cette version ne peut pas être indexée.', 409);
         $this->books->updateVersionStatus($versionId, 'EMBEDDING');
         try {
-            while ([] !== ($chunks = $this->embeddings->pendingChunks($versionId, 20))) {
+            while ([] !== ($chunks = $this->embeddings->pendingChunks($versionId, 10))) {
                 $vectors = $this->gemini->embed(array_column($chunks, 'content'));
                 $this->connection->transactional(function () use ($chunks, $vectors): void {
                     foreach ($chunks as $index => $chunk) $this->embeddings->save($chunk['id'], $vectors[$index], $this->gemini->embeddingModel());

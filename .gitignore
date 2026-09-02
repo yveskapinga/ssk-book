@@ -1,9 +1,12 @@
 /.env
+/.env.deploy
 /.idea/
 /.vscode/
 /api/.env.local
+/api/.env.*.local
 /api/vendor/
 /api/var/
+/api/.phpunit.cache/
 /web/node_modules/
 /web/dist/
 /web/*.tsbuildinfo

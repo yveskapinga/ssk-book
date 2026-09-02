@@ -39,6 +39,14 @@ final readonly class IngestionJobRepository
         );
     }
 
+    public function reopenFailed(string $id): int
+    {
+        return $this->connection->executeStatement(
+            "UPDATE ingestion_jobs SET status = 'PENDING', current_step = 'PENDING', progress = 0, error_message = NULL, started_at = NULL, completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND status = 'FAILED'",
+            ['id' => $id],
+        );
+    }
+
     public function fail(string $id, string $message): void
     {
         $this->connection->executeStatement(

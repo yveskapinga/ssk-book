@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Book\EditorialService;
 use App\Book\EmbeddingService;
+use App\Book\PageImageService;
 use App\Controller\ApiController;
 use App\Identity\User;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/admin/book-versions', name: 'api_admin_book_versions_')]
 final class BookEditorialController extends ApiController
 {
-    public function __construct(private readonly EditorialService $editorial, private readonly EmbeddingService $embeddings) {}
+    public function __construct(private readonly EditorialService $editorial, private readonly EmbeddingService $embeddings, private readonly PageImageService $images) {}
 
     #[Route('', name: 'list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -33,6 +34,13 @@ final class BookEditorialController extends ApiController
     public function embeddings(string $id): JsonResponse
     {
         try { return $this->success($this->embeddings->index($this->actor(), $id)); }
+        catch (\Throwable $exception) { return $this->failure($exception); }
+    }
+
+    #[Route('/{id}/images', name: 'images', methods: ['POST'])]
+    public function images(string $id): JsonResponse
+    {
+        try { return $this->success($this->images->render($this->actor(), $id)); }
         catch (\Throwable $exception) { return $this->failure($exception); }
     }
 

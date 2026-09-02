@@ -18,7 +18,8 @@ SELECT v.id, v.book_id, b.title AS book_title, b.slug, v.version_number, v.label
        v.status, v.page_count, v.created_at, v.published_at,
        (SELECT decision FROM book_version_reviews r WHERE r.version_id = v.id ORDER BY r.created_at DESC LIMIT 1) AS latest_decision,
        COUNT(c.id) AS chunk_count,
-       COUNT(c.embedding) AS embedded_count
+       COUNT(c.embedding) AS embedded_count,
+       (SELECT COUNT(*) FROM book_page_images i WHERE i.version_id = v.id) AS image_count
 FROM book_versions v
 JOIN books b ON b.id = v.book_id
 LEFT JOIN book_chunks c ON c.version_id = v.id

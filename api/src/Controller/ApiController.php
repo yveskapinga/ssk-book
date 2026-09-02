@@ -16,9 +16,33 @@ abstract class ApiController extends AbstractController
     protected function failure(\Throwable $exception): JsonResponse
     {
         if ($exception instanceof DomainException) {
-            return new JsonResponse(['error' => ['message' => $exception->getMessage()]], $exception->statusCode);
+            return new JsonResponse([
+                'error' => [
+                    'code' => 'DOMAIN_ERROR',
+                    'message' => $exception->getMessage(),
+                    'details' => null,
+                    'correlationId' => null,
+                ],
+            ], $exception->statusCode);
         }
 
-        return new JsonResponse(['error' => ['message' => 'Une erreur interne est survenue.']], 500);
+        $correlationId = bin2hex(random_bytes(8));
+        error_log(sprintf(
+            '[ssk-book %s] %s: %s in %s:%d',
+            $correlationId,
+            $exception::class,
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine(),
+        ));
+
+        return new JsonResponse([
+            'error' => [
+                'code' => 'INTERNAL_ERROR',
+                'message' => 'Une erreur interne est survenue.',
+                'details' => null,
+                'correlationId' => $correlationId,
+            ],
+        ], 500);
     }
 }
