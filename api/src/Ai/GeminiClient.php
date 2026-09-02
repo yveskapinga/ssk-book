@@ -12,7 +12,6 @@ final readonly class GeminiClient
     public function __construct(
         private HttpClientInterface $http,
         #[Autowire('%env(GEMINI_API_KEY)%')] private string $apiKey,
-        #[Autowire('%env(GEMINI_GENERATION_MODEL)%')] private string $generationModel,
         #[Autowire('%env(GEMINI_EMBEDDING_MODEL)%')] private string $embeddingModel,
         #[Autowire('%env(int:GEMINI_EMBEDDING_DIMENSION)%')] private int $embeddingDimension,
     ) {
@@ -51,39 +50,6 @@ final readonly class GeminiClient
         return $vectors;
     }
 
-    public function answer(string $question, array $sources): array
-    {
-        $this->assertConfigured();
-        $context = implode("\n\n", array_map(static fn (array $s): string => sprintf('[SOURCE %s | pages %d-%d]\n%s', $s['id'], $s['start_page'], $s['end_page'], $s['content']), $sources));
-        $prompt = <<<PROMPT
-Tu réponds uniquement à partir des sources du livre ci-dessous. N'invente rien.
-Si les sources sont insuffisantes, réponds exactement que le livre ne permet pas de répondre.
-Respecte les nuances du texte et distingue les affirmations de l'auteur.
-Retourne uniquement un JSON valide avec: answer (string), sourceIds (array de chaînes), insufficientEvidence (boolean).
-
-QUESTION:
-{$question}
-
-SOURCES:
-{$context}
-PROMPT;
-        $data = $this->requestJson("https://generativelanguage.googleapis.com/v1beta/models/{$this->generationModel}:generateContent", [
-            'headers' => ['x-goog-api-key' => $this->apiKey],
-            'json' => ['contents' => [['parts' => [['text' => $prompt]]]], 'generationConfig' => ['temperature' => 0.1, 'responseMimeType' => 'application/json']],
-            'timeout' => 60,
-        ]);
-        $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-        if (!is_string($text)) {
-            throw new \RuntimeException('Gemini did not return an answer.');
-        }
-        $answer = json_decode($text, true, 512, JSON_THROW_ON_ERROR);
-        if (!isset($answer['answer'], $answer['sourceIds'], $answer['insufficientEvidence']) || !is_string($answer['answer']) || !is_array($answer['sourceIds']) || !is_bool($answer['insufficientEvidence'])) {
-            throw new \RuntimeException('Gemini returned an invalid answer contract.');
-        }
-
-        return $answer;
-    }
-
     private function requestJson(string $url, array $options, int $attempts = 6): array
     {
         $delay = 2;
@@ -105,7 +71,7 @@ PROMPT;
         }
         $status = $last instanceof HttpExceptionInterface ? $last->getResponse()->getStatusCode() : 0;
         if (404 === $status) {
-            throw new DomainException('Le modèle Gemini configuré n’est plus disponible. Mettez à jour GEMINI_GENERATION_MODEL.', 503);
+            throw new DomainException('Le modèle d’embedding Gemini configuré n’est plus disponible. Mettez à jour GEMINI_EMBEDDING_MODEL.', 503);
         }
         if (429 === $status) {
             throw new DomainException('Gemini a saturé le quota. Réessayez dans une minute.', 503);

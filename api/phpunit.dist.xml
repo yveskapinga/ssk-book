@@ -19,6 +19,10 @@
         <server name="GEMINI_GENERATION_MODEL" value="gemini-flash-lite-latest" />
         <server name="GEMINI_EMBEDDING_MODEL" value="gemini-embedding-001" />
         <server name="GEMINI_EMBEDDING_DIMENSION" value="768" />
+        <server name="AIGW_BASE_URL" value="http://127.0.0.1:18190" />
+        <server name="AIGW_API_KEY" value="test-gateway-key" />
+        <server name="AIGW_APPLICATION" value="APP_SSK_BOOK" />
+        <server name="AIGW_COMPLEXITY" value="low" />
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 

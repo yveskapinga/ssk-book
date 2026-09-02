@@ -2,6 +2,7 @@
 
 namespace App\Book;
 
+use App\Ai\GatewayAnswerClient;
 use App\Ai\GeminiClient;
 use App\Identity\User;
 use App\Shared\DomainException;
@@ -10,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 final readonly class QuestionService
 {
-    public function __construct(private Connection $connection, private SearchRepository $search, private ConversationRepository $conversations, private GeminiClient $gemini) {}
+    public function __construct(private Connection $connection, private SearchRepository $search, private ConversationRepository $conversations, private GeminiClient $gemini, private GatewayAnswerClient $answers) {}
 
     public function ask(User $user, string $bookSlug, string $question, ?string $conversationId): array
     {
@@ -21,7 +22,7 @@ final readonly class QuestionService
         $queryVector = $this->gemini->embed([$question], 'RETRIEVAL_QUERY')[0];
         $sources = $this->search->hybrid($bookSlug, $question, $queryVector);
         if ([] === $sources) $answer = ['answer' => 'Le livre ne permet pas de répondre.', 'sourceIds' => [], 'insufficientEvidence' => true];
-        else $answer = $this->gemini->answer($question, $sources);
+        else $answer = $this->answers->answer($question, $sources);
 
         $allowed = array_column($sources, null, 'id');
         $sourceIds = array_values(array_filter(array_unique($answer['sourceIds']), static fn ($id): bool => isset($allowed[$id])));

@@ -9,3 +9,12 @@ services:
     resource: ../src/
     exclude:
       - ../src/Kernel.php
+
+  AiGateway\Sdk\HttpTransport:
+    arguments:
+      $baseUrl: '%env(AIGW_BASE_URL)%'
+
+  AiGateway\Sdk\GatewayClient:
+    arguments:
+      $transport: '@AiGateway\Sdk\HttpTransport'
+      $apiKey: '%env(AIGW_API_KEY)%'

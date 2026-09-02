@@ -48,9 +48,22 @@ GEMINI_API_KEY=
 GEMINI_GENERATION_MODEL=gemini-flash-lite-latest
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 GEMINI_EMBEDDING_DIMENSION=768
+AIGW_BASE_URL=http://127.0.0.1:18190
+AIGW_API_KEY=dev_only_change_me
+AIGW_APPLICATION=APP_SSK_BOOK
+AIGW_COMPLEXITY=low
 EOF
   echo "==> Created ${API_ENV}"
 fi
+
+append_env_if_missing() {
+  local key="$1" val="$2"
+  grep -q "^${key}=" "${API_ENV}" || printf '%s=%s\n' "${key}" "${val}" >> "${API_ENV}"
+}
+append_env_if_missing AIGW_BASE_URL 'http://127.0.0.1:18190'
+append_env_if_missing AIGW_API_KEY 'dev_only_change_me'
+append_env_if_missing AIGW_APPLICATION 'APP_SSK_BOOK'
+append_env_if_missing AIGW_COMPLEXITY 'low'
 
 echo "==> Postgres :${PG_PORT}"
 docker compose -p ssk-book --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d

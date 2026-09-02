@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3d37caf59aab8ccd2d2f088e18ca45d3",
+    "content-hash": "497d1865b9f8686c384af027232a69ff",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -5691,6 +5691,40 @@
                 }
             ],
             "time": "2025-12-04T18:07:52+00:00"
+        },
+        {
+            "name": "yveskapinga/ai-gateway-sdk",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/yveskapinga/ai-gateway.git",
+                "reference": "6b623e5610b26536c1dff2dfe96ba91986f51943"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/yveskapinga/ai-gateway/zipball/6b623e5610b26536c1dff2dfe96ba91986f51943",
+                "reference": "6b623e5610b26536c1dff2dfe96ba91986f51943",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.3"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "AiGateway\\Sdk\\": "sdk/php/src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "AIGW-006 PHP PEP SDK — asks generate/embed, never a local LLM engine",
+            "support": {
+                "source": "https://github.com/yveskapinga/ai-gateway/tree/main",
+                "issues": "https://github.com/yveskapinga/ai-gateway/issues"
+            },
+            "time": "2026-09-02T16:50:24+00:00"
         }
     ],
     "packages-dev": [
@@ -7927,9 +7961,11 @@
         }
     ],
     "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": {},
-    "prefer-stable": false,
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "yveskapinga/ai-gateway-sdk": 20
+    },
+    "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": ">=8.3",
