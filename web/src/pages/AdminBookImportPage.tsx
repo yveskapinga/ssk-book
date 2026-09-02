@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 type ImportResult = { bookId: string; versionId: string; versionNumber: number; jobId: string; status: string }
 type JobResult = { id: string; status: string; current_step: string; progress: number; error_message: string | null; metrics: Record<string, number> }
 
-export function AdminBookImportPage() {
+export function AdminBookImportPage({ embedded=false }: { embedded?:boolean }) {
   const { token } = useAuth()
   const [title, setTitle] = useState('Le Prophète KADIMA Bakenge')
   const [label, setLabel] = useState('Édition principale')
@@ -36,9 +36,10 @@ export function AdminBookImportPage() {
     }
   }
 
+  const Root=embedded?'div':'main'
   return (
-    <main className="page admin-page">
-      <div className="page-heading"><div><span className="eyebrow">Administration</span><h1>Importer un livre</h1></div></div>
+    <Root className={embedded?'embedded-workflow':'page admin-page'}>
+      {!embedded&&<div className="page-heading"><div><span className="eyebrow">Administration</span><h1>Importer un livre</h1></div></div>}
       <div className="import-grid">
         <form className="admin-card" onSubmit={submit}>
           <h2>Nouvelle version</h2>
@@ -46,8 +47,8 @@ export function AdminBookImportPage() {
           {error && <div className="form-error" role="alert">{error}</div>}
           <label>Titre du livre<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
           <label>Libellé de version<input value={label} onChange={(e) => setLabel(e.target.value)} required /></label>
-          <label>Description<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} /></label>
-          <label>Document PDF<input type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required /></label>
+          <label className="field-span-2">Description<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} /></label>
+          <label className="field-span-2">Document PDF<input type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required /></label>
           <button className="primary" disabled={busy}>{busy ? 'Extraction en cours…' : 'Importer et extraire'}</button>
         </form>
         <section className="admin-card result-card">
@@ -60,6 +61,6 @@ export function AdminBookImportPage() {
           </>}
         </section>
       </div>
-    </main>
+    </Root>
   )
 }

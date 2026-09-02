@@ -1,62 +1,34 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
-import { AdminUsersPage } from './pages/AdminUsersPage'
-import { AdminBookImportPage } from './pages/AdminBookImportPage'
-import { AdminReviewPage } from './pages/AdminReviewPage'
-import { AuthPage } from './pages/AuthPage'
+import { AppShell } from './components/AppShell'
+import { AdminWorkspacePage } from './pages/AdminWorkspacePage'
 import { AskBookPage } from './pages/AskBookPage'
+import { AuthPage } from './pages/AuthPage'
+import { ProgressWorkspacePage } from './pages/ProgressWorkspacePage'
+import { QuizWorkspacePage } from './pages/QuizWorkspacePage'
+import { ReaderHomePage } from './pages/ReaderHomePage'
+import { ReadingWorkspacePage } from './pages/ReadingWorkspacePage'
 
-function HomePage() {
-  return (
-    <main className="page hero">
-      <span className="eyebrow">Bibliothèque interactive</span>
-      <h1>Lire, comprendre et approfondir.</h1>
-      <p>
-        Retrouvez le livre du Souverain Sacrificateur KADIMA, progressez à votre rythme
-        et interrogez son contenu avec des réponses accompagnées de leurs sources.
-      </p>
-      <div className="actions">
-        <button className="primary" type="button">Commencer la lecture</button>
-        <button className="secondary" type="button">Poser une question</button>
-      </div>
-    </main>
-  )
+function PublicHomePage() {
+  const { user } = useAuth()
+  if (user) return <Navigate to="/espace" replace />
+  return <div className="public-shell"><header className="public-header"><Link className="brand" to="/">SSK <span>Book</span></Link><nav><Link to="/connexion">Se connecter</Link><Link className="primary button-link" to="/inscription">Créer un compte</Link></nav></header><main className="page hero"><span className="eyebrow">Bibliothèque interactive</span><h1>Lire, comprendre et approfondir.</h1><p>Découvrez le livre du Souverain Sacrificateur KADIMA, vérifiez vos connaissances et obtenez des réponses accompagnées de leurs pages sources.</p><div className="actions"><Link className="primary button-link" to="/inscription">Commencer la lecture</Link><Link className="secondary button-link" to="/connexion">J’ai déjà un compte</Link></div></main></div>
 }
 
-function Placeholder({ title }: { title: string }) {
-  return <main className="page"><h1>{title}</h1><p>Ce module sera livré dans le lot fonctionnel correspondant.</p></main>
-}
+function WorkspaceLayout(){return <AppShell><Outlet/></AppShell>}
 
-export default function App() {
-  const { user, logout } = useAuth()
-  return (
-    <div className="app-shell">
-      <header>
-        <NavLink className="brand" to="/">SSK <span>Book</span></NavLink>
-        <nav aria-label="Navigation principale">
-          <NavLink to="/lecture">Lecture</NavLink>
-          <NavLink to="/questions">Questions</NavLink>
-          <NavLink to="/quiz">Quiz</NavLink>
-          {user?.roles.includes('ROLE_ADMIN') && <NavLink to="/admin/importer">Administration</NavLink>}
-        </nav>
-        {user ? <button className="account" type="button" onClick={() => void logout()}>Se déconnecter</button> : <NavLink className="account" to="/connexion">Se connecter</NavLink>}
-      </header>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/lecture" element={<Placeholder title="Lecture" />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/questions" element={<AskBookPage />} />
-        </Route>
-        <Route path="/quiz" element={<Placeholder title="Quiz" />} />
-        <Route path="/connexion" element={<AuthPage mode="login" />} />
-        <Route path="/inscription" element={<AuthPage mode="register" />} />
-        <Route element={<ProtectedRoute admin />}>
-          <Route path="/admin/utilisateurs" element={<AdminUsersPage />} />
-          <Route path="/admin/importer" element={<AdminBookImportPage />} />
-          <Route path="/admin/revue" element={<AdminReviewPage />} />
-        </Route>
-      </Routes>
-    </div>
-  )
-}
+export default function App(){return <Routes>
+  <Route path="/" element={<PublicHomePage/>}/>
+  <Route path="/connexion" element={<AuthPage mode="login"/>}/>
+  <Route path="/inscription" element={<AuthPage mode="register"/>}/>
+  <Route element={<ProtectedRoute/>}><Route element={<WorkspaceLayout/>}>
+    <Route path="/espace" element={<ReaderHomePage/>}/>
+    <Route path="/lecture" element={<ReadingWorkspacePage/>}/>
+    <Route path="/questions" element={<AskBookPage/>}/>
+    <Route path="/quiz" element={<QuizWorkspacePage/>}/>
+    <Route path="/progression" element={<ProgressWorkspacePage/>}/>
+    <Route element={<ProtectedRoute admin/>}><Route path="/admin" element={<AdminWorkspacePage/>}/></Route>
+  </Route></Route>
+  <Route path="*" element={<Navigate to="/" replace/>}/>
+</Routes>}
