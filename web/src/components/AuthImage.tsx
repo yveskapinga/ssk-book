@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
+import { useAppError } from '../lib/AppError'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export function AuthImage({ src, alt, token }: { src: string; alt: string; token: string }) {
+  const { report } = useAppError()
   const [url, setUrl] = useState<string>()
   const [error, setError] = useState('')
 
@@ -29,13 +31,16 @@ export function AuthImage({ src, alt, token }: { src: string; alt: string; token
         setUrl(nextUrl)
       })
       .catch(reason => {
-        if (!cancelled) setError(reason instanceof ApiError ? reason.message : 'Image indisponible.')
+        if (!cancelled) {
+          setError(reason instanceof ApiError ? reason.message : 'Image indisponible.')
+          report(reason, 'L’illustration n’a pas pu être affichée.')
+        }
       })
     return () => {
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [src, token])
+  }, [src, token, report])
 
   if (error) return <p className="help-text" role="status">{error}</p>
   if (!url) return <div className="page-image-skeleton" aria-busy="true">Chargement du visuel…</div>

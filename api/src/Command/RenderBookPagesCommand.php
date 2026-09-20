@@ -3,6 +3,7 @@
 namespace App\Command;
 
 use App\Book\PageImageService;
+use App\Book\PassageIndexer;
 use App\Identity\User;
 use App\Identity\UserRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -15,8 +16,11 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 #[AsCommand(name: 'app:book:render-pages', description: 'Extract embedded book photos for a version')]
 final class RenderBookPagesCommand extends Command
 {
-    public function __construct(private readonly PageImageService $images, private readonly UserRepository $users)
-    {
+    public function __construct(
+        private readonly PageImageService $images,
+        private readonly PassageIndexer $passages,
+        private readonly UserRepository $users,
+    ) {
         parent::__construct();
     }
 
@@ -36,8 +40,10 @@ final class RenderBookPagesCommand extends Command
 
             return Command::FAILURE;
         }
-        $result = $this->images->render($actor, (string) $input->getArgument('version-id'));
-        $io->success(sprintf('%d photos du livre extraites.', $result['images']));
+        $versionId = (string) $input->getArgument('version-id');
+        $result = $this->images->render($actor, $versionId);
+        $indexed = $this->passages->rebuild($versionId, true);
+        $io->success(sprintf('%d photos du livre extraites, %d passages indexés.', $result['images'], $indexed['passages']));
 
         return Command::SUCCESS;
     }

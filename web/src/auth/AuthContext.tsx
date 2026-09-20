@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { apiRequest } from '../api/client'
+import { ApiError, apiRequest } from '../api/client'
+import { useAppError } from '../lib/AppError'
 import type { AuthPayload, User } from './types'
 
 const TOKEN_KEY = 'ssk-book.access-token'
@@ -16,6 +17,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { report } = useAppError()
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(TOKEN_KEY))
   const [user, setUser] = useState<User | null>(null)
   const [initializing, setInitializing] = useState(true)
@@ -33,13 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     apiRequest<{ data: { user: User } }>('/api/auth/me', {}, token)
       .then(({ data }) => setUser(data.user))
-      .catch(() => {
+      .catch((err) => {
         sessionStorage.removeItem(TOKEN_KEY)
         setToken(null)
         setUser(null)
+        if (!(err instanceof ApiError && (err.status === 401 || err.status === 403))) {
+          report(err, 'La session n’a pas pu être restaurée.')
+        }
       })
       .finally(() => setInitializing(false))
-  }, [token])
+  }, [token, report])
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await apiRequest<{ data: AuthPayload }>('/api/auth/login', {
@@ -58,12 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       if (token) await apiRequest('/api/auth/logout', { method: 'POST' }, token)
+    } catch (err) {
+      report(err, 'La déconnexion n’a pas pu être confirmée côté serveur.')
     } finally {
       sessionStorage.removeItem(TOKEN_KEY)
       setToken(null)
       setUser(null)
     }
-  }, [token])
+  }, [token, report])
 
   const value = useMemo(() => ({ user, token, initializing, login, register, logout }), [user, token, initializing, login, register, logout])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

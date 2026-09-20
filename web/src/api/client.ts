@@ -1,10 +1,16 @@
-export type ApiErrorBody = { error?: { message?: string; correlationId?: string } }
+export type ApiErrorBody = { error?: { code?: string; message?: string; correlationId?: string } }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export class ApiError extends Error {
-  constructor(message: string, public readonly status: number, public readonly correlationId?: string) {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly correlationId?: string,
+    public readonly code?: string,
+  ) {
     super(message)
+    this.name = 'ApiError'
   }
 }
 
@@ -14,14 +20,31 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, tok
   if (options.body && !(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers })
+  } catch {
+    throw new ApiError('Impossible de joindre le serveur. Vérifiez votre connexion.', 0, undefined, 'NETWORK_ERROR')
+  }
+
   if (response.status === 204) return undefined as T
 
-  const body = await response.json().catch(() => ({})) as ApiErrorBody & T
+  const raw = await response.text()
+  let body: ApiErrorBody & T = {} as ApiErrorBody & T
+  if (raw) {
+    try {
+      body = JSON.parse(raw) as ApiErrorBody & T
+    } catch {
+      body = {} as ApiErrorBody & T
+    }
+  }
+
   if (!response.ok) {
-    const message = body.error?.message ?? 'Une erreur est survenue.'
+    const message = body.error?.message ?? (response.status >= 500
+      ? 'Une erreur interne est survenue.'
+      : 'Une erreur est survenue.')
     const correlationId = body.error?.correlationId
-    throw new ApiError(correlationId ? `${message} (${correlationId})` : message, response.status, correlationId)
+    throw new ApiError(message, response.status, correlationId, body.error?.code)
   }
 
   return body as T

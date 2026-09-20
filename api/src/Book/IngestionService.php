@@ -18,6 +18,7 @@ final readonly class IngestionService
         private BookChunker $chunker,
         private BookStructureDetector $structure,
         private PageImageService $pageImages,
+        private PassageIndexer $passages,
         private AuditRepository $audit,
     ) {
     }
@@ -87,15 +88,19 @@ final readonly class IngestionService
 
             try {
                 $rendered = $this->pageImages->render($actor, $version['id']);
-                $job = $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
-                $job['metrics'] = array_merge(is_array($job['metrics'] ?? null) ? $job['metrics'] : [], $rendered);
-
-                return $job;
             } catch (\Throwable $exception) {
                 error_log(sprintf('[ssk-book] page render after ingestion failed: %s', $exception->getMessage()));
-
-                return $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
+                $rendered = [];
             }
+            $indexed = $this->passages->rebuild($version['id']);
+            $job = $this->jobs->find($jobId) ?? throw new \RuntimeException('Ingestion result is unavailable.');
+            $job['metrics'] = array_merge(
+                is_array($job['metrics'] ?? null) ? $job['metrics'] : [],
+                $rendered,
+                $indexed,
+            );
+
+            return $job;
         } catch (\Throwable $exception) {
             $this->connection->transactional(function () use ($jobId, $version, $exception): void {
                 $this->books->updateVersionStatus($version['id'], 'FAILED');

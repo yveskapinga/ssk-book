@@ -13,6 +13,7 @@ final readonly class ReadingService
         private BookRepository $books,
         private ReadingRepository $reading,
         private PageImageRepository $images,
+        private ReadingProgressPolicy $policy,
     ) {
     }
 
@@ -32,6 +33,7 @@ final readonly class ReadingService
             'toc' => $this->books->tableOfContents($versionId),
             'progress' => $this->reading->progress($user->id, $versionId),
             'chunkCount' => $total,
+            'passageCount' => $this->books->passageCount($versionId),
         ];
     }
 
@@ -91,6 +93,157 @@ final readonly class ReadingService
                 'end_page' => (int) $chunk['end_page'],
                 'content' => (string) $chunk['content'],
             ],
+        ];
+    }
+
+    public function currentReading(User $user, string $slug, ?string $passageId = null, int $pageNumber = 0): array
+    {
+        $book = $this->requirePublished($slug);
+        $versionId = $book['version_id'];
+        $total = $this->books->passageCount($versionId);
+        if (0 === $total) {
+            throw new DomainException('La lecture par passage n’est pas encore disponible pour ce livre.', 404);
+        }
+
+        $frontierRow = $this->reading->frontier($user->id, $versionId);
+        $allRead = null === $frontierRow;
+        $frontier = $frontierRow ?? $this->books->lastPassage($versionId);
+        if (null === $frontier) {
+            throw new DomainException('Aucun passage n’est disponible.', 404);
+        }
+        $maxPosition = (int) $frontier['position'];
+
+        $requested = null;
+        if (is_string($passageId) && '' !== $passageId) {
+            $requested = $this->books->publishedPassage($versionId, $passageId);
+            if (null === $requested) {
+                throw new DomainException('Passage introuvable.', 404);
+            }
+        } elseif ($pageNumber > 0) {
+            $requested = $this->books->firstPassageAtPage($versionId, $pageNumber);
+            if (null === $requested) {
+                throw new DomainException('Aucun passage sur cette page.', 404);
+            }
+        }
+
+        $target = $requested ?? $frontier;
+        if ((int) $target['position'] > $maxPosition) {
+            throw new DomainException('Ce passage n’est pas encore déverrouillé.', 403);
+        }
+
+        $passage = $this->books->publishedPassage($versionId, (string) $target['id']);
+        if (null === $passage) {
+            throw new DomainException('Passage introuvable.', 404);
+        }
+
+        return $this->presentReading($user, $slug, $versionId, $passage, $frontier, $total, $allRead);
+    }
+
+    public function observeReading(User $user, string $slug, string $passageId, int $displayedMs, bool $advance = false): array
+    {
+        $book = $this->requirePublished($slug);
+        $versionId = $book['version_id'];
+        $passage = $this->books->publishedPassage($versionId, $passageId);
+        if (null === $passage) {
+            throw new DomainException('Passage introuvable.', 404);
+        }
+
+        $frontier = $this->reading->frontier($user->id, $versionId);
+        $allRead = null === $frontier;
+        if (null === $frontier) {
+            $frontier = $this->books->lastPassage($versionId);
+        }
+        if (null === $frontier) {
+            throw new DomainException('Aucun passage n’est disponible.', 404);
+        }
+        if ((int) $passage['position'] > (int) $frontier['position'] && !$allRead) {
+            throw new DomainException('Ce passage n’est pas encore déverrouillé.', 403);
+        }
+
+        $existing = $this->reading->passageProgress($user->id, $passageId);
+        $alreadyRead = 'READ' === ($existing['status'] ?? null);
+        $sequential = !$allRead && (int) $passage['position'] === (int) $frontier['position'];
+        $displayedMs = max(0, min(120_000, $displayedMs));
+        $totalMs = (int) ($existing['displayed_ms'] ?? 0) + $displayedMs;
+        $decision = $this->policy->decide($alreadyRead, $sequential, $totalMs, mb_strlen((string) $passage['body']), $advance);
+        $this->reading->upsertPassageProgress($user->id, $passageId, $decision['status'], $totalMs, $decision['confidence']);
+
+        $chunkId = (string) ($passage['chunk_id'] ?? '');
+        if ('' === $chunkId) {
+            $covering = $this->books->chunkCoveringPage($versionId, (int) $passage['page_number']);
+            $chunkId = (string) ($covering['id'] ?? '');
+        }
+        if ('' !== $chunkId) {
+            $this->reading->upsertProgress($user->id, $versionId, $chunkId, (int) $passage['page_number'], $passageId);
+        }
+
+        $presented = $this->currentReading($user, $slug, $passageId);
+        if ($advance && is_string($presented['nextId'] ?? null) && '' !== $presented['nextId']) {
+            return $this->currentReading($user, $slug, (string) $presented['nextId']);
+        }
+
+        return $presented;
+    }
+
+    /**
+     * @param array<string, mixed> $passage
+     * @param array<string, mixed> $frontier
+     */
+    private function presentReading(User $user, string $slug, string $versionId, array $passage, array $frontier, int $total, bool $allRead): array
+    {
+        $progress = $this->reading->passageProgress($user->id, (string) $passage['id']);
+        $status = (string) ($progress['status'] ?? 'IN_PROGRESS');
+        $position = (int) $passage['position'];
+        $frontierPosition = (int) $frontier['position'];
+        $previous = $this->books->passageNeighbor($versionId, $position, -1);
+        $next = $this->books->passageNeighbor($versionId, $position, 1);
+        $canAdvance = null !== $next;
+        $bodyLength = mb_strlen((string) $passage['body']);
+        $figure = null;
+        if ('IMAGE' === $passage['kind'] && null !== ($passage['figure_id'] ?? null)) {
+            $figure = [
+                'id' => $passage['figure_id'],
+                'url' => '/api/books/'.$slug.'/figures/'.$passage['figure_id'].'/image',
+                'width_px' => (int) ($passage['width_px'] ?? 0),
+                'height_px' => (int) ($passage['height_px'] ?? 0),
+            ];
+        }
+        $chunk = null;
+        if (null !== ($passage['chunk_id'] ?? null)) {
+            $row = $this->books->publishedChunk($versionId, (string) $passage['chunk_id']);
+            $chunk = null === $row ? null : [
+                'id' => $row['id'],
+                'position' => (int) $row['position'],
+                'start_page' => (int) $row['start_page'],
+                'end_page' => (int) $row['end_page'],
+                'content' => (string) $row['content'],
+            ];
+        }
+
+        return [
+            'passage' => [
+                'id' => $passage['id'],
+                'position' => $position,
+                'page_number' => (int) $passage['page_number'],
+                'kind' => $passage['kind'],
+                'body' => (string) $passage['body'],
+                'chapter_title' => $passage['chapter_title'] ?? null,
+                'figure' => $figure,
+                'chunk' => $chunk,
+            ],
+            'status' => $status,
+            'confidence' => isset($progress['confidence']) ? (float) $progress['confidence'] : 0.0,
+            'estimatedSeconds' => $this->policy->estimatedSeconds($bodyLength),
+            'total' => $total,
+            'frontier' => [
+                'id' => $frontier['id'],
+                'position' => $frontierPosition,
+                'page_number' => (int) $frontier['page_number'],
+            ],
+            'previousId' => $previous['id'] ?? null,
+            'nextId' => $next['id'] ?? null,
+            'canAdvance' => $canAdvance,
+            'complete' => $allRead,
         ];
     }
 

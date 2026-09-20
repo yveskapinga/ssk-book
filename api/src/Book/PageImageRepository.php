@@ -42,4 +42,12 @@ final readonly class PageImageRepository
     {
         return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM book_page_images WHERE version_id = :id', ['id' => $versionId]);
     }
+
+    public function forVersion(string $versionId): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT id, page_number, sort_index, y_ratio, width_px, height_px FROM book_page_images WHERE version_id = :id ORDER BY page_number, y_ratio, sort_index',
+            ['id' => $versionId],
+        );
+    }
 }

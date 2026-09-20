@@ -236,4 +236,105 @@ SQL, ['id' => $versionId, 'query' => '%'.$query.'%', 'limit' => $limit], ['limit
 
         return false === $row ? null : $row;
     }
+
+    public function versionIdsWithPages(): array
+    {
+        return $this->connection->fetchFirstColumn('SELECT DISTINCT version_id FROM book_pages ORDER BY version_id');
+    }
+
+    public function pagesForVersion(string $versionId): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT page_number AS "pageNumber", normalized_text AS "normalizedText" FROM book_pages WHERE version_id = :id ORDER BY page_number',
+            ['id' => $versionId],
+        );
+    }
+
+    public function chunksMetaForVersion(string $versionId): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT id, start_page, end_page FROM book_chunks WHERE version_id = :id ORDER BY position',
+            ['id' => $versionId],
+        );
+    }
+
+    public function replacePassages(string $versionId, array $passages): void
+    {
+        $this->connection->executeStatement('DELETE FROM book_passages WHERE version_id = :version_id', ['version_id' => $versionId]);
+        foreach ($passages as $passage) {
+            $this->connection->insert('book_passages', $passage);
+        }
+    }
+
+    public function passageCount(string $versionId): int
+    {
+        return (int) $this->connection->fetchOne('SELECT COUNT(*) FROM book_passages WHERE version_id = :id', ['id' => $versionId]);
+    }
+
+    public function publishedPassage(string $versionId, string $id): ?array
+    {
+        $row = $this->connection->fetchAssociative(<<<'SQL'
+SELECT p.id, p.position, p.page_number, p.kind, p.body, p.figure_id, p.chunk_id, p.node_id,
+       n.title AS chapter_title, i.width_px, i.height_px
+FROM book_passages p
+LEFT JOIN book_nodes n ON n.id = p.node_id
+LEFT JOIN book_page_images i ON i.id = p.figure_id
+WHERE p.version_id = :version_id AND p.id = :id
+SQL, ['version_id' => $versionId, 'id' => $id]);
+
+        return false === $row ? null : $row;
+    }
+
+    public function firstPassage(string $versionId): ?array
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, position, page_number, kind, body, figure_id, chunk_id, node_id FROM book_passages WHERE version_id = :id ORDER BY position LIMIT 1',
+            ['id' => $versionId],
+        );
+
+        return false === $row ? null : $row;
+    }
+
+    public function lastPassage(string $versionId): ?array
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, position, page_number, kind, body, figure_id, chunk_id, node_id FROM book_passages WHERE version_id = :id ORDER BY position DESC LIMIT 1',
+            ['id' => $versionId],
+        );
+
+        return false === $row ? null : $row;
+    }
+
+    public function firstPassageAtPage(string $versionId, int $pageNumber): ?array
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, position, page_number, kind, body, figure_id, chunk_id, node_id FROM book_passages WHERE version_id = :id AND page_number = :page ORDER BY position LIMIT 1',
+            ['id' => $versionId, 'page' => $pageNumber],
+            ['page' => \Doctrine\DBAL\ParameterType::INTEGER],
+        );
+
+        return false === $row ? null : $row;
+    }
+
+    public function passageNeighbor(string $versionId, int $position, int $delta): ?array
+    {
+        $operator = $delta < 0 ? '<' : '>';
+        $order = $delta < 0 ? 'DESC' : 'ASC';
+        $row = $this->connection->fetchAssociative(
+            "SELECT id, position FROM book_passages WHERE version_id = :id AND position {$operator} :position ORDER BY position {$order} LIMIT 1",
+            ['id' => $versionId, 'position' => $position],
+            ['position' => \Doctrine\DBAL\ParameterType::INTEGER],
+        );
+
+        return false === $row ? null : $row;
+    }
+
+    public function passagesBeforePosition(string $versionId, int $position): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT id, position, page_number, chunk_id FROM book_passages WHERE version_id = :id AND position < :position ORDER BY position',
+            ['id' => $versionId, 'position' => $position],
+            ['position' => \Doctrine\DBAL\ParameterType::INTEGER],
+        );
+    }
 }

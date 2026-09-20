@@ -1,15 +1,22 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../api/client'
 import { SearchableSelect } from '../components/SearchableSelect'
 import { useAuth } from '../auth/AuthContext'
+import { useAppError } from '../lib/AppError'
 
 type Source = { id:string; start_page:number; end_page:number; content:string; score:number }
 type Answer = { conversationId:string; answer:string; insufficientEvidence:boolean; sources:Source[] }
 type Book = { slug:string; title:string }
 
+function formatAskError(reason: unknown, fallback: string): string {
+  if (!(reason instanceof ApiError)) return fallback
+  return reason.correlationId ? `${reason.message} (réf. ${reason.correlationId})` : reason.message
+}
+
 export function AskBookPage() {
   const { token } = useAuth()
+  const { report } = useAppError()
   const library = useQuery({ queryKey:['library'], queryFn:()=>apiRequest<{data:{items:Book[]}}>('/api/library', {}, token).then(r=>r.data.items) })
   const [slug,setSlug]=useState('')
   const [question,setQuestion]=useState('')
@@ -19,6 +26,12 @@ export function AskBookPage() {
   const [busy,setBusy]=useState(false)
   const selected = slug || library.data?.[0]?.slug || ''
 
+  useEffect(() => {
+    if (!library.error) return
+    report(library.error, 'La bibliothèque n’a pas pu être chargée.')
+    setError(formatAskError(library.error, 'La bibliothèque n’a pas pu être chargée.'))
+  }, [library.error, report])
+
   async function submit(event:FormEvent){
     event.preventDefault()
     if (!selected) return setError('Aucun livre publié n’est disponible.')
@@ -27,7 +40,8 @@ export function AskBookPage() {
       const result=await apiRequest<{data:Answer}>(`/api/books/${selected}/questions`,{method:'POST',body:JSON.stringify({question,conversationId})},token)
       setAnswer(result.data); setConversationId(result.data.conversationId)
     } catch(reason){
-      setError(reason instanceof ApiError?reason.message:'La question n’a pas pu être traitée.')
+      report(reason, 'La question n’a pas pu être traitée.')
+      setError(formatAskError(reason, 'La question n’a pas pu être traitée.'))
     } finally { setBusy(false) }
   }
 

@@ -19,6 +19,7 @@ final class GatewayAnswerClientTest extends TestCase
                 self::assertSame('APP_SSK_BOOK', $body['application']);
                 self::assertSame('low', $body['complexity']);
                 self::assertArrayHasKey('jsonSchema', $body);
+                self::assertStringContainsString('graphie', (string) $body['prompt']);
 
                 return [
                     'status' => 200,
@@ -120,6 +121,45 @@ final class GatewayAnswerClientTest extends TestCase
         } catch (DomainException $e) {
             self::assertSame(502, $e->statusCode);
             self::assertStringNotContainsString('ceci n’est pas un JSON', $e->getMessage());
+        }
+    }
+
+    public function testPlaceholderAnswerDoesNotInventBookFact(): void
+    {
+        $client = new GatewayAnswerClient(
+            new GatewayClient(new CallableTransport(static function (): array {
+                return [
+                    'status' => 200,
+                    'body' => [
+                        'text' => '{"answer":"nous n\'avons pas reçu d\'answer","sourceIds":[],"insufficientEvidence":true}',
+                        'provider' => 'ollama',
+                        'model' => 'llama3.2:3b',
+                        'correlationId' => 'corr-placeholder',
+                        'json' => [
+                            'answer' => 'nous n\'avons pas reçu d\'answer',
+                            'sourceIds' => [],
+                            'insufficientEvidence' => true,
+                        ],
+                    ],
+                    'correlationId' => 'corr-placeholder',
+                    'error' => null,
+                ];
+            }), 'test-gateway-key'),
+            'APP_SSK_BOOK',
+            'low',
+        );
+
+        try {
+            $client->answer('Qui est-ce ?', [[
+                'id' => 'src-1',
+                'start_page' => 1,
+                'end_page' => 1,
+                'content' => 'x',
+            ]]);
+            self::fail('expected DomainException');
+        } catch (DomainException $e) {
+            self::assertSame(502, $e->statusCode);
+            self::assertStringNotContainsString('n\'avons pas reçu', $e->getMessage());
         }
     }
 }

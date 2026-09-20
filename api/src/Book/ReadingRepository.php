@@ -11,31 +11,100 @@ final readonly class ReadingRepository
     {
     }
 
-    public function upsertProgress(string $userId, string $versionId, string $chunkId, int $pageNumber): void
+    public function upsertProgress(string $userId, string $versionId, string $chunkId, int $pageNumber, ?string $passageId = null): void
     {
         $this->connection->executeStatement(<<<'SQL'
-INSERT INTO reading_progress (user_id, version_id, chunk_id, page_number, updated_at)
-VALUES (:user_id, :version_id, :chunk_id, :page_number, CURRENT_TIMESTAMP)
+INSERT INTO reading_progress (user_id, version_id, chunk_id, page_number, passage_id, updated_at)
+VALUES (:user_id, :version_id, :chunk_id, :page_number, :passage_id, CURRENT_TIMESTAMP)
 ON CONFLICT (user_id, version_id) DO UPDATE
-SET chunk_id = EXCLUDED.chunk_id, page_number = EXCLUDED.page_number, updated_at = CURRENT_TIMESTAMP
+SET chunk_id = EXCLUDED.chunk_id, page_number = EXCLUDED.page_number, passage_id = EXCLUDED.passage_id, updated_at = CURRENT_TIMESTAMP
 SQL, [
             'user_id' => $userId,
             'version_id' => $versionId,
             'chunk_id' => $chunkId,
             'page_number' => $pageNumber,
+            'passage_id' => $passageId,
         ], ['page_number' => ParameterType::INTEGER]);
     }
 
     public function progress(string $userId, string $versionId): ?array
     {
         $row = $this->connection->fetchAssociative(<<<'SQL'
-SELECT p.chunk_id, p.page_number, p.updated_at, c.position, c.start_page, c.end_page
+SELECT p.chunk_id, p.page_number, p.passage_id, p.updated_at, c.position, c.start_page, c.end_page
 FROM reading_progress p
 JOIN book_chunks c ON c.id = p.chunk_id
 WHERE p.user_id = :user_id AND p.version_id = :version_id
 SQL, ['user_id' => $userId, 'version_id' => $versionId]);
 
         return false === $row ? null : $row;
+    }
+
+    public function progressRowsForVersion(string $versionId): array
+    {
+        return $this->connection->fetchAllAssociative(
+            'SELECT user_id, chunk_id, page_number, passage_id FROM reading_progress WHERE version_id = :id',
+            ['id' => $versionId],
+        );
+    }
+
+    public function passageProgress(string $userId, string $passageId): ?array
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT status, displayed_ms, confidence FROM reading_passage_progress WHERE user_id = :user_id AND passage_id = :passage_id',
+            ['user_id' => $userId, 'passage_id' => $passageId],
+        );
+
+        return false === $row ? null : $row;
+    }
+
+    public function upsertPassageProgress(string $userId, string $passageId, string $status, int $displayedMs, float $confidence): void
+    {
+        $this->connection->executeStatement(<<<'SQL'
+INSERT INTO reading_passage_progress (user_id, passage_id, status, displayed_ms, confidence, updated_at)
+VALUES (:user_id, :passage_id, :status, :displayed_ms, :confidence, CURRENT_TIMESTAMP)
+ON CONFLICT (user_id, passage_id) DO UPDATE
+SET status = CASE WHEN reading_passage_progress.status = 'READ' THEN 'READ' ELSE EXCLUDED.status END,
+    displayed_ms = EXCLUDED.displayed_ms,
+    confidence = GREATEST(reading_passage_progress.confidence, EXCLUDED.confidence),
+    updated_at = CURRENT_TIMESTAMP
+SQL, [
+            'user_id' => $userId,
+            'passage_id' => $passageId,
+            'status' => $status,
+            'displayed_ms' => $displayedMs,
+            'confidence' => $confidence,
+        ], ['displayed_ms' => ParameterType::INTEGER]);
+    }
+
+    public function markPassagesRead(string $userId, array $passageIds): void
+    {
+        foreach ($passageIds as $passageId) {
+            $this->upsertPassageProgress($userId, (string) $passageId, 'READ', 0, 1.0);
+        }
+    }
+
+    public function frontier(string $userId, string $versionId): ?array
+    {
+        $row = $this->connection->fetchAssociative(<<<'SQL'
+SELECT p.id, p.position, p.page_number, p.kind, p.body, p.figure_id, p.chunk_id, p.node_id
+FROM book_passages p
+LEFT JOIN reading_passage_progress r ON r.passage_id = p.id AND r.user_id = :user_id AND r.status = 'READ'
+WHERE p.version_id = :version_id AND r.passage_id IS NULL
+ORDER BY p.position
+LIMIT 1
+SQL, ['user_id' => $userId, 'version_id' => $versionId]);
+
+        return false === $row ? null : $row;
+    }
+
+    public function readCount(string $userId, string $versionId): int
+    {
+        return (int) $this->connection->fetchOne(<<<'SQL'
+SELECT COUNT(*)
+FROM reading_passage_progress r
+JOIN book_passages p ON p.id = r.passage_id
+WHERE r.user_id = :user_id AND p.version_id = :version_id AND r.status = 'READ'
+SQL, ['user_id' => $userId, 'version_id' => $versionId]);
     }
 
     public function addBookmark(string $id, string $userId, string $versionId, string $chunkId): void
@@ -126,9 +195,12 @@ SQL, ['user_id' => $userId]);
         return $this->connection->fetchAssociative(<<<'SQL'
 SELECT
     COALESCE((
-        SELECT ROUND(100.0 * (c.position + 1) / NULLIF((SELECT COUNT(*) FROM book_chunks x WHERE x.version_id = p.version_id), 0), 0)
+        SELECT ROUND(100.0 * (
+            SELECT COUNT(*) FROM reading_passage_progress r
+            JOIN book_passages x ON x.id = r.passage_id
+            WHERE r.user_id = p.user_id AND x.version_id = p.version_id AND r.status = 'READ'
+        ) / NULLIF((SELECT COUNT(*) FROM book_passages x WHERE x.version_id = p.version_id), 0), 0)
         FROM reading_progress p
-        JOIN book_chunks c ON c.id = p.chunk_id
         WHERE p.user_id = :user_id
         ORDER BY p.updated_at DESC LIMIT 1
     ), 0) AS reading_percent,

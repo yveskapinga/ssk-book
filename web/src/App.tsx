@@ -1,4 +1,5 @@
 import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Brand } from './components/Brand'
 import { useAuth } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppShell } from './components/AppShell'
@@ -13,7 +14,7 @@ import { ReadingWorkspacePage } from './pages/ReadingWorkspacePage'
 function PublicHomePage() {
   const { user } = useAuth()
   if (user) return <Navigate to="/espace" replace />
-  return <div className="public-shell"><header className="public-header"><Link className="brand" to="/">SSK <span>Book</span></Link><nav className="public-nav"><Link className="ghost" to="/connexion">Se connecter</Link><Link className="primary" to="/inscription">Créer un compte</Link></nav></header><main className="page hero"><span className="eyebrow">Bibliothèque interactive</span><h1>Lire, comprendre et approfondir.</h1><p>Découvrez le livre du Souverain Sacrificateur KADIMA, vérifiez vos connaissances et obtenez des réponses accompagnées de leurs pages sources.</p><div className="actions"><Link className="primary" to="/inscription">Commencer la lecture</Link><Link className="secondary" to="/connexion">J’ai déjà un compte</Link></div></main></div>
+  return <div className="public-shell"><header className="public-header"><Brand to="/" /><nav className="public-nav"><Link className="ghost" to="/connexion">Se connecter</Link><Link className="primary" to="/inscription">Créer un compte</Link></nav></header><main className="page hero"><span className="eyebrow">Bibliothèque interactive</span><h1>Lire, comprendre et approfondir.</h1><p>Découvrez le livre du Souverain Sacrificateur KADIMA, vérifiez vos connaissances et obtenez des réponses accompagnées de leurs pages sources.</p><div className="actions"><Link className="primary" to="/inscription">Commencer la lecture</Link><Link className="secondary" to="/connexion">J’ai déjà un compte</Link></div></main></div>
 }
 
 function WorkspaceLayout(){return <AppShell><Outlet/></AppShell>}

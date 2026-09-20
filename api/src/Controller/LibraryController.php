@@ -88,6 +88,51 @@ final class LibraryController extends ApiController
         }
     }
 
+    #[Route('/api/books/{slug}/reading', name: 'api_book_reading', methods: ['GET'])]
+    public function reading(string $slug, Request $request): JsonResponse
+    {
+        try {
+            $passage = trim((string) $request->query->get('passage', ''));
+
+            return $this->success($this->reading->currentReading(
+                $this->actor(),
+                $slug,
+                '' === $passage ? null : $passage,
+                $request->query->getInt('page', 0),
+            ));
+        } catch (\Throwable $exception) {
+            return $this->failure($exception);
+        }
+    }
+
+    #[Route('/api/books/{slug}/passages/{id}', name: 'api_book_passage', methods: ['GET'])]
+    public function passage(string $slug, string $id): JsonResponse
+    {
+        try {
+            return $this->success($this->reading->currentReading($this->actor(), $slug, $id));
+        } catch (\Throwable $exception) {
+            return $this->failure($exception);
+        }
+    }
+
+    #[Route('/api/books/{slug}/reading/progress', name: 'api_book_reading_progress', methods: ['POST'])]
+    public function readingProgress(string $slug, Request $request): JsonResponse
+    {
+        try {
+            $payload = $request->toArray();
+
+            return $this->success($this->reading->observeReading(
+                $this->actor(),
+                $slug,
+                (string) ($payload['passageId'] ?? ''),
+                (int) ($payload['displayedMs'] ?? 0),
+                (bool) ($payload['advance'] ?? false),
+            ));
+        } catch (\Throwable $exception) {
+            return $this->failure($exception);
+        }
+    }
+
     #[Route('/api/books/{slug}/bookmarks', name: 'api_book_bookmarks', methods: ['POST'])]
     public function bookmark(string $slug, Request $request): JsonResponse
     {

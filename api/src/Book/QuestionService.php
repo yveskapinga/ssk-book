@@ -25,8 +25,10 @@ final readonly class QuestionService
         else $answer = $this->answers->answer($question, $sources);
 
         $allowed = array_column($sources, null, 'id');
-        $sourceIds = array_values(array_filter(array_unique($answer['sourceIds']), static fn ($id): bool => isset($allowed[$id])));
-        if (!$answer['insufficientEvidence'] && [] === $sourceIds) throw new \RuntimeException('The generated answer did not cite a retrieved source.');
+        $sourceIds = CitedSourceResolver::resolve($answer['sourceIds'], $sources, (bool) $answer['insufficientEvidence']);
+        if (!$answer['insufficientEvidence'] && [] === $sourceIds) {
+            throw new DomainException('La réponse n’a pas pu être reliée aux passages du livre. Réessayez.', 502);
+        }
         $newConversation = null === $conversationId;
         $conversationId ??= Uuid::v7()->toRfc4122();
         if (!$newConversation && !$this->conversations->belongsTo($conversationId, $user->id)) throw new DomainException('Conversation introuvable.', 404);

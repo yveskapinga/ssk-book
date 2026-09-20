@@ -33,6 +33,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   return (
     <main className="auth-page">
       <form className="auth-card" onSubmit={submit}>
+        <img className="auth-logo" src="/logo.png" width={72} height={72} alt="" />
         <span className="eyebrow">SSK Book</span>
         <h1>{registering ? 'Créer un compte' : 'Bienvenue'}</h1>
         <p>{registering ? 'Créez votre espace personnel de lecture.' : 'Connectez-vous pour reprendre votre lecture.'}</p>

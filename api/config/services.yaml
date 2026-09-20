@@ -10,9 +10,14 @@ services:
     exclude:
       - ../src/Kernel.php
 
+  App\Ai\GeminiClient:
+    arguments:
+      $embeddingDimension: '%env(int:GEMINI_EMBEDDING_DIMENSION)%'
+
   AiGateway\Sdk\HttpTransport:
     arguments:
       $baseUrl: '%env(AIGW_BASE_URL)%'
+      $timeoutMs: 150000
 
   AiGateway\Sdk\GatewayClient:
     arguments:
