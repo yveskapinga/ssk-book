@@ -38,6 +38,14 @@ export default defineConfig({
     }),
   ],
   server: {
-    proxy: { '/api': { target: 'http://localhost:8080', changeOrigin: true } },
+    host: '0.0.0.0',
+    proxy: {
+      '/api': {
+        // En Docker Compose : http://api:8080 (voir compose.yaml).
+        // En local hors Docker : http://localhost:8080.
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
 })

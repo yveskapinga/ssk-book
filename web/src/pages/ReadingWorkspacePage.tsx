@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { AuthImage } from '../components/AuthImage'
+import { BusyButton } from '../components/BusyButton'
 import { SearchableSelect } from '../components/SearchableSelect'
+import { Spinner } from '../components/Spinner'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useAppError } from '../lib/AppError'
@@ -273,7 +275,7 @@ export function ReadingWorkspacePage() {
     </header>
 
     <section className="reader-stage" aria-live="polite">
-      {(reading.isPending && !passage) && <p className="reader-loading">Chargement du passage…</p>}
+      {(reading.isPending && !passage) && <p className="reader-loading inline-busy"><Spinner size="sm" label="Chargement du passage…" /></p>}
       {passage?.kind === 'IMAGE' && passage.figure && (
         <figure className="reader-figure">
           <AuthImage src={passage.figure.url} alt={`Illustration de la page ${passage.page_number}`} token={token ?? ''} />
@@ -286,10 +288,10 @@ export function ReadingWorkspacePage() {
     <p className="reader-status">{current ? statusLabel : ' '}</p>
 
     <footer className="reader-dock">
-      <button type="button" className="secondary" disabled={!current?.previousId || busy} onClick={() => current?.previousId && goToPassage(current.previousId)}>Précédent</button>
-      <button type="button" className="primary" disabled={busy || !current?.nextId} onClick={() => void goNext()}>
-        {current?.complete && !current.nextId ? 'Terminé' : busy ? 'Suite…' : 'Suivant'}
-      </button>
+      <BusyButton className="secondary" busy={busy} busyLabel="…" disabled={!current?.previousId} onClick={() => current?.previousId && goToPassage(current.previousId)}>Précédent</BusyButton>
+      <BusyButton className="primary" busy={busy} busyLabel="Suite…" disabled={!current?.nextId} onClick={() => void goNext()}>
+        {current?.complete && !current.nextId ? 'Terminé' : 'Suivant'}
+      </BusyButton>
     </footer>
 
     {panel && <div className="reader-overlay" onClick={() => setPanel(null)}>
@@ -327,10 +329,10 @@ export function ReadingWorkspacePage() {
           {notes.data?.length ? notes.data.map(item => <article key={item.id} className="note-card"><small>Page {item.start_page}</small><p>{item.body}</p></article>) : <p className="empty-inline">Aucune note personnelle.</p>}
         </div>}
         {panel === 'tools' && <div className="reader-tools-panel">
-          <button type="button" className="secondary" disabled={busy || !chunk} onClick={() => void bookmark()}>Ajouter aux favoris</button>
-          <button type="button" className="secondary" disabled={busy || !chunk} onClick={() => void highlight()}>Surligner la sélection</button>
+          <BusyButton className="secondary" busy={busy} busyLabel="Enregistrement…" disabled={!chunk} onClick={() => void bookmark()}>Ajouter aux favoris</BusyButton>
+          <BusyButton className="secondary" busy={busy} busyLabel="Enregistrement…" disabled={!chunk} onClick={() => void highlight()}>Surligner la sélection</BusyButton>
           <label>Note sur ce passage<textarea value={note} onChange={e => setNote(e.target.value)} rows={4} /></label>
-          <button type="button" className="primary" disabled={busy || !chunk || note.trim().length < 2} onClick={() => void saveNote()}>Enregistrer la note</button>
+          <BusyButton className="primary" busy={busy} busyLabel="Enregistrement…" disabled={!chunk || note.trim().length < 2} onClick={() => void saveNote()}>Enregistrer la note</BusyButton>
         </div>}
         {panel === 'book' && (library.data?.length ?? 0) > 0 && <SearchableSelect
           value={slug}

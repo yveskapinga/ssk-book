@@ -196,6 +196,51 @@ h1 { max-width: 760px; margin: 16px 0; font-family: var(--font-display); font-si
 .app-error-banner code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .app-error-banner button { min-height: 32px; padding: 0 8px; color: var(--muted); }
 .form-success { margin: 16px 0; padding: 12px 14px; border-radius: 10px; color: #0a3d8a; background: #fff8d6; }
+
+.ui-spinner { display:inline-flex; align-items:center; gap:8px; vertical-align:middle; }
+.ui-spinner-disc {
+  display:inline-block; box-sizing:border-box;
+  border:2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius:50%;
+  animation: ui-spin .7s linear infinite;
+}
+.ui-spinner-sm .ui-spinner-disc { width:14px; height:14px; }
+.ui-spinner-md .ui-spinner-disc { width:22px; height:22px; border-width:3px; }
+.ui-spinner-label { font-size:.9rem; color:var(--muted); font-weight:700; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+
+.busy-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.busy-button[aria-busy="true"] { cursor: wait; }
+
+.operation-progress {
+  display:grid; gap:10px; margin:16px 0;
+  padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--panel);
+}
+.operation-progress.is-done { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.operation-progress-head { display:flex; align-items:flex-start; gap:12px; }
+.operation-progress-head > div { flex:1; min-width:0; }
+.operation-progress-head strong { display:block; font-size:.98rem; }
+.operation-progress-head p { margin:4px 0 0; color:var(--muted); font-size:.88rem; line-height:1.45; }
+.operation-progress-meter { color:var(--accent); font-size:.82rem; font-weight:800; white-space:nowrap; }
+.operation-progress-track {
+  height:8px; border-radius:999px; background:#e8eef7; overflow:hidden;
+}
+.operation-progress-track > span {
+  display:block; height:100%; width:0; border-radius:inherit; background:var(--accent);
+  transition: width .35s ease;
+}
+.operation-progress-track.is-indeterminate > span {
+  width:36%;
+  animation: ui-progress-slide 1.2s ease-in-out infinite;
+}
+.operation-progress small { color:var(--muted); font-weight:700; }
+@keyframes ui-progress-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+.inline-busy { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-weight:700; }
 .note-card { position:relative; margin-bottom:12px; padding:18px 20px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
 .note-card small { color:var(--accent); font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
 .note-card h2 { margin:6px 0; font-family:var(--font-display); font-size:1.2rem; font-weight:600; }

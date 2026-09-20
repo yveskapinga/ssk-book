@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PageTabs } from '../components/PageTabs'
 import { SearchableSelect } from '../components/SearchableSelect'
+import { BusyButton } from '../components/BusyButton'
 import { apiRequest, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
@@ -66,7 +67,7 @@ export function QuizWorkspacePage(){
         <small>{quiz.book_title}</small><h2>{quiz.title}</h2>
         <div className="quiz-meta"><span>{Number(quiz.question_count)} questions</span><span>Validé par un administrateur</span></div>
         <div className="row-actions compact">
-          <button className="primary" disabled={busy} onClick={()=>void start(quiz)}>Commencer le quiz</button>
+          <BusyButton className="primary" busy={busy} busyLabel="Démarrage…" onClick={()=>void start(quiz)}>Commencer le quiz</BusyButton>
           <button type="button" className="secondary" onClick={()=>{setRankingQuiz(quiz.id); setTab('ranking')}}>Classement</button>
         </div>
       </article>)}
@@ -80,7 +81,7 @@ export function QuizWorkspacePage(){
         <button type="button" className="secondary" disabled={active.index===0} onClick={()=>setActive({...active, index:active.index-1})}>Précédent</button>
         {active.index < active.questions.length-1
           ? <button type="button" className="primary" disabled={!active.answers[question.id]} onClick={()=>setActive({...active, index:active.index+1})}>Question suivante</button>
-          : <button className="primary" disabled={busy || Object.keys(active.answers).length!==active.questions.length}>Envoyer et voir le score</button>}
+          : <BusyButton className="primary" type="submit" busy={busy} busyLabel="Envoi…" disabled={Object.keys(active.answers).length!==active.questions.length}>Envoyer et voir le score</BusyButton>}
       </footer>
     </form>}
 

@@ -15,7 +15,7 @@ final readonly class BookFileStorage
     public function store(string $versionId, UploadedFile $file): array
     {
         if (!$file->isValid()) {
-            throw new DomainException('Le fichier transmis doit être un PDF valide.');
+            throw new DomainException($this->uploadErrorMessage($file));
         }
 
         $mime = $file->getClientMimeType();
@@ -50,5 +50,16 @@ final readonly class BookFileStorage
         if (is_file($path)) {
             unlink($path);
         }
+    }
+
+    private function uploadErrorMessage(UploadedFile $file): string
+    {
+        return match ($file->getError()) {
+            \UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE => 'Le fichier PDF dépasse la taille maximale autorisée (50 Mo).',
+            \UPLOAD_ERR_PARTIAL => 'Le téléversement du PDF a été interrompu. Réessayez.',
+            \UPLOAD_ERR_NO_FILE => 'Aucun fichier PDF n’a été transmis.',
+            \UPLOAD_ERR_NO_TMP_DIR, \UPLOAD_ERR_CANT_WRITE => 'Impossible d’enregistrer temporairement le PDF sur le serveur.',
+            default => 'Le fichier transmis doit être un PDF valide.',
+        };
     }
 }

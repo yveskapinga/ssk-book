@@ -19,17 +19,30 @@ final readonly class EmbeddingService
         if (!in_array($version['status'], ['REVIEW_REQUIRED', 'EMBEDDING'], true)) throw new DomainException('Cette version ne peut pas être indexée.', 409);
         $this->books->updateVersionStatus($versionId, 'EMBEDDING');
         try {
-            while ([] !== ($chunks = $this->embeddings->pendingChunks($versionId, 10))) {
+            // Partial runs avoid HTTP timeouts under Gemini 429 backoff; caller resumes until done.
+            $processed = 0;
+            $maxPerRun = 40;
+            while ($processed < $maxPerRun && [] !== ($chunks = $this->embeddings->pendingChunks($versionId, 8))) {
                 $vectors = $this->gemini->embed(array_column($chunks, 'content'));
                 $this->connection->transactional(function () use ($chunks, $vectors): void {
-                    foreach ($chunks as $index => $chunk) $this->embeddings->save($chunk['id'], $vectors[$index], $this->gemini->embeddingModel());
+                    foreach ($chunks as $index => $chunk) {
+                        $this->embeddings->save($chunk['id'], $vectors[$index], $this->gemini->embeddingModel());
+                    }
                 });
+                $processed += count($chunks);
+                usleep(400_000);
             }
             $counts = $this->embeddings->counts($versionId);
-            $this->connection->transactional(function () use ($actor, $versionId, $counts): void {
+            $done = (int) $counts['embedded'] === (int) $counts['total'] && (int) $counts['total'] > 0;
+            $this->connection->transactional(function () use ($actor, $versionId, $counts, $done): void {
                 $this->books->updateVersionStatus($versionId, 'REVIEW_REQUIRED');
-                $this->audit->append($actor->id, 'BOOK_VERSION_EMBEDDED', 'BOOK_VERSION', $versionId, $counts);
+                if ($done) {
+                    $this->audit->append($actor->id, 'BOOK_VERSION_EMBEDDED', 'BOOK_VERSION', $versionId, $counts);
+                }
             });
+            $counts['done'] = $done;
+            $counts['processed'] = $processed;
+
             return $counts;
         } catch (\Throwable $exception) {
             $this->books->updateVersionStatus($versionId, 'REVIEW_REQUIRED');

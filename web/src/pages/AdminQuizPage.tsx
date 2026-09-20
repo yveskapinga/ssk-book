@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { apiRequest, ApiError } from '../api/client'
 import { SearchableSelect } from '../components/SearchableSelect'
+import { BusyButton } from '../components/BusyButton'
 import { useAuth } from '../auth/AuthContext'
 
 type QuizRow = { id:string; title:string; status:string; created_at:string; book_title:string; slug:string; question_count:number|string }
@@ -78,8 +79,8 @@ export function AdminQuizPage() {
         </fieldset>
       )}
       <div className="row-actions field-span-2">
-        <button type="button" className="secondary" onClick={()=>setQuestions([...questions, emptyQuestion()])}>Ajouter une question</button>
-        <button className="primary" disabled={busy}>Enregistrer le brouillon</button>
+        <button type="button" className="secondary" onClick={()=>setQuestions([...questions, emptyQuestion()])} disabled={busy}>Ajouter une question</button>
+        <BusyButton className="primary" type="submit" busy={busy} busyLabel="Enregistrement…">Enregistrer le brouillon</BusyButton>
       </div>
     </form>
     <div className="quiz-admin-list">
@@ -90,8 +91,8 @@ export function AdminQuizPage() {
             <span className={`status ${q.status==='PUBLISHED'?'active':''}`}>{q.status==='DRAFT'?'Brouillon':q.status==='REVIEW_REQUIRED'?'En attente de revue':q.status==='PUBLISHED'?'Publié':q.status}</span>
           </div>
           {(q.status==='DRAFT' || q.status==='REVIEW_REQUIRED') && <div className="row-actions">
-            {q.status==='DRAFT' && <button type="button" className="secondary" disabled={busy} onClick={()=>void act(q.id,'review')}>Soumettre à revue</button>}
-            {q.status==='REVIEW_REQUIRED' && <button type="button" className="primary" disabled={busy} onClick={()=>void act(q.id,'publish')}>Publier</button>}
+            {q.status==='DRAFT' && <BusyButton className="secondary" busy={busy} busyLabel="Envoi…" disabled={busy} onClick={()=>void act(q.id,'review')}>Soumettre à revue</BusyButton>}
+            {q.status==='REVIEW_REQUIRED' && <BusyButton className="primary" busy={busy} busyLabel="Publication…" disabled={busy} onClick={()=>void act(q.id,'publish')}>Publier</BusyButton>}
           </div>}
         </article>
       )}

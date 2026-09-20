@@ -2,9 +2,13 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiRequest, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { BusyButton } from '../components/BusyButton'
+import { OperationProgress } from '../components/OperationProgress'
+import { Spinner } from '../components/Spinner'
 
 type Version = { id: string; book_title: string; version_number: number; label: string; status: string; page_count: number | null; chunk_count: string | number; embedded_count: string | number; image_count?: string | number; latest_decision:string|null }
 type Chunk = { id:string; position:number; start_page:number; end_page:number; content:string; embedded:boolean }
+type ProgressState = { versionId: string; title: string; current: number; total: number; indeterminate?: boolean; done?: boolean; detail?: string }
 
 function statusLabel(status: string) {
   if (status === 'REVIEW_REQUIRED') return 'En attente de revue'
@@ -18,9 +22,20 @@ function isIndexed(version: Version) {
   return Number(version.embedded_count) === Number(version.chunk_count) && Number(version.chunk_count) > 0
 }
 
+function actionLabel(type: string) {
+  if (type === 'embed') return 'Indexation'
+  if (type === 'images') return 'Extraction des photos'
+  if (type === 'approve') return 'Approbation'
+  if (type === 'publish') return 'Publication'
+  if (type === 'inspect') return 'Chargement des passages'
+  if (type === 'reject') return 'Rejet'
+  return 'Traitement'
+}
+
 export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
   const { token } = useAuth(); const cache = useQueryClient()
   const [busy, setBusy] = useState<string | null>(null)
+  const [progress, setProgress] = useState<ProgressState | null>(null)
   const [error, setError] = useState('')
   const [feedback, setFeedback] = useState('')
   const [query, setQuery] = useState('')
@@ -43,34 +58,85 @@ export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
 
   async function action(version: Version, type: 'embed'|'approve'|'publish'|'images') {
     setBusy(`${type}:${version.id}`); setError(''); setFeedback(''); setRejectingId(null)
+    const title = `${actionLabel(type)} · ${version.book_title}`
+    if (type === 'embed') {
+      setProgress({
+        versionId: version.id,
+        title,
+        current: Number(version.embedded_count),
+        total: Number(version.chunk_count),
+        detail: 'Vectorisation des passages via Gemini…',
+      })
+    } else {
+      setProgress({ versionId: version.id, title, current: 0, total: 0, indeterminate: true, detail: 'Veuillez patienter…' })
+    }
     try {
       const path = type === 'embed' ? 'embeddings' : type === 'publish' ? 'publish' : type === 'images' ? 'images' : 'review'
       const body = type === 'approve' ? JSON.stringify({decision:'APPROVED'}) : undefined
-      await apiRequest(`/api/admin/book-versions/${version.id}/${path}`, {method:'POST', body}, token)
-      setFeedback(type === 'embed' ? 'Indexation terminée.' : type === 'approve' ? 'Version approuvée. Cliquez maintenant sur Publier.' : type === 'images' ? 'Photos du livre extraites.' : 'Version publiée.')
-      await cache.invalidateQueries({queryKey:['book-versions']})
-    } catch (reason) { setError(reason instanceof ApiError ? reason.message : 'Opération impossible.') }
-    finally { setBusy(null) }
+      if (type === 'embed') {
+        let done = false
+        while (!done) {
+          const result = await apiRequest<{data:{total:string|number; embedded:string|number; done?:boolean}}>(`/api/admin/book-versions/${version.id}/${path}`, {method:'POST', body}, token)
+          const embeddedCount = Number(result.data.embedded)
+          const total = Number(result.data.total)
+          done = result.data.done === true || (total > 0 && embeddedCount >= total)
+          setProgress({
+            versionId: version.id,
+            title,
+            current: embeddedCount,
+            total,
+            done,
+            detail: done ? 'Tous les passages sont indexés.' : 'Indexation par lots en cours…',
+          })
+          await cache.invalidateQueries({queryKey:['book-versions']})
+        }
+        setFeedback('Indexation terminée.')
+      } else {
+        await apiRequest(`/api/admin/book-versions/${version.id}/${path}`, {method:'POST', body}, token)
+        setProgress({ versionId: version.id, title, current: 1, total: 1, done: true, detail: 'Opération terminée.' })
+        setFeedback(type === 'approve' ? 'Version approuvée. Cliquez maintenant sur Publier.' : type === 'images' ? 'Photos du livre extraites.' : 'Version publiée.')
+        await cache.invalidateQueries({queryKey:['book-versions']})
+      }
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : 'Opération impossible.')
+      setProgress(null)
+    } finally {
+      setBusy(null)
+      window.setTimeout(() => setProgress((current) => (current?.done ? null : current)), 1600)
+    }
   }
 
   async function reject(event: FormEvent, version: Version) {
     event.preventDefault()
     setBusy(`reject:${version.id}`); setError(''); setFeedback('')
+    setProgress({ versionId: version.id, title: `Rejet · ${version.book_title}`, current: 0, total: 0, indeterminate: true })
     try {
       await apiRequest(`/api/admin/book-versions/${version.id}/review`, {method:'POST', body: JSON.stringify({decision:'REJECTED', notes: rejectNotes})}, token)
       setRejectingId(null); setRejectNotes(''); setFeedback('Version rejetée.')
+      setProgress({ versionId: version.id, title: `Rejet · ${version.book_title}`, current: 1, total: 1, done: true })
       await cache.invalidateQueries({queryKey:['book-versions']})
-    } catch (reason) { setError(reason instanceof ApiError ? reason.message : 'Rejet impossible.') }
-    finally { setBusy(null) }
+    } catch (reason) {
+      setError(reason instanceof ApiError ? reason.message : 'Rejet impossible.')
+      setProgress(null)
+    } finally {
+      setBusy(null)
+      window.setTimeout(() => setProgress((current) => (current?.done ? null : current)), 1200)
+    }
   }
 
   async function inspect(version: Version) {
     setBusy(`inspect:${version.id}`); setError('')
+    setProgress({ versionId: version.id, title: `Passages · ${version.book_title}`, current: 0, total: 0, indeterminate: true, detail: 'Chargement de l’aperçu…' })
     try {
       const result=await apiRequest<{data:{items:Chunk[]}}>(`/api/admin/book-versions/${version.id}/chunks?limit=30`,{},token)
       setPreview({versionId:version.id,chunks:result.data.items})
-    } catch (reason) { setError(reason instanceof ApiError?reason.message:'Aperçu indisponible.') }
-    finally { setBusy(null) }
+      setProgress(null)
+    } catch (reason) {
+      setError(reason instanceof ApiError?reason.message:'Aperçu indisponible.')
+      setProgress(null)
+    } finally {
+      setBusy(null)
+    }
   }
 
   const Root=embedded?'div':'main'
@@ -80,7 +146,17 @@ export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
       : <div className="page-heading"><div><span className="eyebrow">Administration</span><h1>Revue des versions</h1></div></div>}
     {error && <div className="form-error" role="alert">{error}</div>}
     {feedback && <div className="form-success" role="status">{feedback}</div>}
-    {versions.isPending && <p>Chargement…</p>}
+    {progress && (
+      <OperationProgress
+        title={progress.title}
+        detail={progress.detail}
+        current={progress.current}
+        total={progress.total}
+        indeterminate={progress.indeterminate}
+        done={progress.done}
+      />
+    )}
+    {versions.isPending && <p className="inline-busy"><Spinner size="sm" label="Chargement des versions…" /></p>}
     <label className="table-search review-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Rechercher une version"/></label>
     <div className="review-list">
       {filtered.map(v => {
@@ -90,6 +166,9 @@ export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
         const locked = busy !== null
         const approveTitle = canReview ? 'Enregistrer la décision d’approbation' : 'Disponible uniquement pour une version en attente de revue'
         const publishTitle = canPublish ? 'Rendre cette version lisible par le public' : !canReview ? 'Disponible uniquement pour une version en attente de revue' : !indexed ? 'Indexez tous les passages avant de publier' : 'Approuvez d’abord cette version'
+        const embedProgress = progress?.versionId === v.id && busy?.startsWith('embed:')
+          ? progress
+          : null
         return <article key={v.id} className={`review-card ${canReview ? 'pending' : ''}`}>
           <div className="review-card-head">
             <div>
@@ -101,12 +180,21 @@ export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
           {canReview && v.latest_decision==='APPROVED' && <p className="help-text">Décision : approuvée. Vous pouvez publier.</p>}
           {canReview && !indexed && <p className="help-text">Indexez tous les passages avant de publier.</p>}
           {canReview && indexed && v.latest_decision!=='APPROVED' && <p className="help-text">Approuvez d’abord cette version, puis cliquez sur Publier.</p>}
+          {embedProgress && (
+            <OperationProgress
+              title="Indexation des passages"
+              detail={embedProgress.detail}
+              current={embedProgress.current}
+              total={embedProgress.total}
+              done={embedProgress.done}
+            />
+          )}
           <div className="row-actions">
-            <button type="button" className="secondary" disabled={locked} onClick={()=>void inspect(v)}>Inspecter les passages</button>
-            <button type="button" className="secondary" disabled={locked || v.status==='FAILED'} onClick={()=>void action(v,'images')}>{busy===`images:${v.id}`?'Extraction des photos…':'Préparer les images'}</button>
-            <button type="button" className="secondary" disabled={locked || !canReview || indexed} title={indexed ? 'Tous les passages sont déjà indexés' : approveTitle} onClick={()=>void action(v,'embed')}>{busy===`embed:${v.id}`?'Indexation…':'Indexer'}</button>
-            <button type="button" className="secondary" disabled={locked || !canReview} title={approveTitle} onClick={()=>void action(v,'approve')}>{busy===`approve:${v.id}`?'Approbation…':'Approuver'}</button>
-            <button type="button" className="primary" disabled={locked || !canPublish} title={publishTitle} onClick={()=>void action(v,'publish')}>{busy===`publish:${v.id}`?'Publication…':'Publier'}</button>
+            <BusyButton className="secondary" busy={busy===`inspect:${v.id}`} busyLabel="Chargement…" disabled={locked && busy!==`inspect:${v.id}`} onClick={()=>void inspect(v)}>Inspecter les passages</BusyButton>
+            <BusyButton className="secondary" busy={busy===`images:${v.id}`} busyLabel="Extraction…" disabled={(locked && busy!==`images:${v.id}`) || v.status==='FAILED'} onClick={()=>void action(v,'images')}>Préparer les images</BusyButton>
+            <BusyButton className="secondary" busy={busy===`embed:${v.id}`} busyLabel="Indexation…" disabled={(locked && busy!==`embed:${v.id}`) || !canReview || indexed} title={indexed ? 'Tous les passages sont déjà indexés' : 'Indexer les passages'} onClick={()=>void action(v,'embed')}>Indexer</BusyButton>
+            <BusyButton className="secondary" busy={busy===`approve:${v.id}`} busyLabel="Approbation…" disabled={(locked && busy!==`approve:${v.id}`) || !canReview} title={approveTitle} onClick={()=>void action(v,'approve')}>Approuver</BusyButton>
+            <BusyButton className="primary" busy={busy===`publish:${v.id}`} busyLabel="Publication…" disabled={(locked && busy!==`publish:${v.id}`) || !canPublish} title={publishTitle} onClick={()=>void action(v,'publish')}>Publier</BusyButton>
             <button type="button" className="danger" disabled={locked || !canReview} title={canReview ? 'Rejeter cette extraction' : 'Disponible uniquement pour une version en attente de revue'} onClick={()=>{setRejectingId(v.id); setRejectNotes(''); setPreview(null)}}>Rejeter</button>
           </div>
           {rejectingId===v.id && <form className="reject-form nested" onSubmit={event=>void reject(event, v)}>
@@ -115,7 +203,7 @@ export function AdminReviewPage({ embedded=false }: { embedded?:boolean }) {
             <textarea value={rejectNotes} onChange={e=>setRejectNotes(e.target.value)} minLength={5} required rows={4} placeholder="Décrivez le problème d’extraction, de pagination ou de qualité."/>
             <div className="row-actions">
               <button type="button" className="secondary" onClick={()=>setRejectingId(null)}>Annuler</button>
-              <button className="danger" disabled={locked || rejectNotes.trim().length<5}>Confirmer le rejet</button>
+              <BusyButton className="danger" type="submit" busy={busy===`reject:${v.id}`} busyLabel="Rejet…" disabled={locked || rejectNotes.trim().length<5}>Confirmer le rejet</BusyButton>
             </div>
           </form>}
           {preview?.versionId===v.id && <section className="chunk-preview standalone">

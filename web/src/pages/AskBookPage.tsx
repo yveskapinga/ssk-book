@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError, apiRequest } from '../api/client'
+import { BusyButton } from '../components/BusyButton'
+import { OperationProgress } from '../components/OperationProgress'
 import { SearchableSelect } from '../components/SearchableSelect'
 import { useAuth } from '../auth/AuthContext'
 import { useAppError } from '../lib/AppError'
@@ -56,8 +58,9 @@ export function AskBookPage() {
         placeholder="Choisir un livre"
         required
       />}
-      <textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Par exemple : quel aliment le SSK aimait-il manger ?" minLength={3} maxLength={1000} required/>
-      <button className="primary" disabled={busy || !selected}>{busy?'Recherche…':'Poser la question'}</button>
+      <textarea value={question} onChange={e=>setQuestion(e.target.value)} placeholder="Par exemple : quel aliment le SSK aimait-il manger ?" minLength={3} maxLength={1000} required disabled={busy}/>
+      {busy && <OperationProgress title="Recherche dans le livre" detail="Embedding de la question et sélection des passages sources…" indeterminate />}
+      <BusyButton className="primary" type="submit" busy={busy} busyLabel="Recherche…" disabled={!selected}>Poser la question</BusyButton>
     </form>
     {error&&<div className="form-error" role="alert">{error}</div>}
     {answer&&<section className="answer-card">

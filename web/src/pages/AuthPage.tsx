@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { BusyButton } from '../components/BusyButton'
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { user, login, register } = useAuth()
@@ -38,10 +39,10 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         <h1>{registering ? 'Créer un compte' : 'Bienvenue'}</h1>
         <p>{registering ? 'Créez votre espace personnel de lecture.' : 'Connectez-vous pour reprendre votre lecture.'}</p>
         {error && <div className="form-error" role="alert">{error}</div>}
-        {registering && <label>Nom complet<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} minLength={2} maxLength={120} required /></label>}
-        <label>Adresse e-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-        <label>Mot de passe<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={registering ? 'new-password' : 'current-password'} minLength={10} required /></label>
-        <button className="primary full" disabled={submitting}>{submitting ? 'Veuillez patienter…' : registering ? 'Créer mon compte' : 'Se connecter'}</button>
+        {registering && <label>Nom complet<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} minLength={2} maxLength={120} required disabled={submitting} /></label>}
+        <label>Adresse e-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required disabled={submitting} /></label>
+        <label>Mot de passe<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={registering ? 'new-password' : 'current-password'} minLength={10} required disabled={submitting} /></label>
+        <BusyButton className="primary full" type="submit" busy={submitting} busyLabel="Veuillez patienter…">{registering ? 'Créer mon compte' : 'Se connecter'}</BusyButton>
         <small>{registering ? <>Déjà inscrit ? <Link to="/connexion">Se connecter</Link></> : <>Nouveau lecteur ? <Link to="/inscription">Créer un compte</Link></>}</small>
       </form>
     </main>
