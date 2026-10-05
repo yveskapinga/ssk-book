@@ -6,6 +6,7 @@ PWA de lecture interactive, quiz et conversation documentée autour du livre du 
 
 - `api/` : Symfony API, authentification, ingestion, quiz, administration et appels Gemini.
 - `web/` : React + TypeScript + Vite PWA.
+- `mobile/` : app Expo (lecteur offline, push, Play Store) — voir [`mobile/README.md`](mobile/README.md).
 - PostgreSQL avec l'extension `pgvector`.
 - Gemini appelé exclusivement depuis l'API.
 
@@ -29,3 +30,5 @@ Le dépôt ne contient aucune clé Gemini. Le PDF source ne doit pas être publi
 
 - [Architecture MVP](docs/ARCHITECTURE_MVP.md)
 - [Plan de démarrage](docs/BOOTSTRAP.md)
+- [Invariants offline mobile](docs/product/mobile-offline-invariants.md)
+- [App mobile Expo](mobile/README.md)

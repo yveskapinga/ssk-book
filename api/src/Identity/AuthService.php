@@ -72,7 +72,8 @@ final readonly class AuthService
     private function issueToken(User $user): array
     {
         $rawToken = bin2hex(random_bytes(32));
-        $expiresAt = new \DateTimeImmutable('+7 days');
+        // Jeton durable : fin uniquement via logout / révocation / compte suspendu.
+        $expiresAt = new \DateTimeImmutable('+100 years');
         $this->tokens->create(Uuid::v7()->toRfc4122(), $user->id, hash('sha256', $rawToken), $expiresAt);
 
         return ['token' => $rawToken, 'expiresAt' => $expiresAt->format(DATE_ATOM), 'user' => $user->toArray()];

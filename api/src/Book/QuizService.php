@@ -4,6 +4,7 @@ namespace App\Book;
 
 use App\Audit\AuditRepository;
 use App\Identity\User;
+use App\Notification\ExpoPushSender;
 use App\Shared\DomainException;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Uid\Uuid;
@@ -15,6 +16,7 @@ final readonly class QuizService
         private QuizRepository $quizzes,
         private BookRepository $books,
         private AuditRepository $audit,
+        private ExpoPushSender $push,
     ) {
     }
 
@@ -111,6 +113,11 @@ final readonly class QuizService
             throw new DomainException('Un quiz ne peut être publié qu’après une revue humaine.', 409);
         }
         $this->audit->append($actor->id, 'QUIZ_PUBLISHED', 'QUIZ', $quizId);
+        $this->push->broadcast([
+            'title' => 'Nouveau quiz',
+            'body' => (string) ($quiz['title'] ?? 'Un quiz vient d’être publié.'),
+            'data' => ['type' => 'quiz', 'quizId' => $quizId, 'url' => '/quiz'],
+        ]);
     }
 
     public function adminList(): array
