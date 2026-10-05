@@ -25,7 +25,7 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        cacheId: 'ssk-book-20260920-next',
+        cacheId: 'ssk-book-20260924-install',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
           {

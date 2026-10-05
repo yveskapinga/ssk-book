@@ -1,6 +1,7 @@
 /.env
 /.env.deploy
 /.data/
+/ssk-book.secrets.env
 /.idea/
 /.vscode/
 /api/.env
