@@ -5,8 +5,8 @@ Lecteur offline-first, auth durable, push Expo, UI alignée sur la PWA.
 ## Prérequis
 
 - Node 20+
-- API ssk-book joignable (`docker compose` → `:8080`)
-- Pour émulateur Android : `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080`
+- API distante : `https://ssk-book.yabisoo.com` (défaut / EAS)
+- API locale (`docker compose` → `:8080`) : `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080` (émulateur Android)
 
 ## Démarrage
 

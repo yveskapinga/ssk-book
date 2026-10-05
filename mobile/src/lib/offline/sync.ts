@@ -7,12 +7,15 @@ export async function flushPending(): Promise<void> {
   if (flushing) return;
   flushing = true;
   try {
-    const items = await listPending();
-    for (const item of items) {
+    // Always re-read; remove by stable id so indices never shift mid-loop.
+    for (;;) {
+      const items = await listPending();
+      if (items.length === 0) break;
+      const item = items[0];
       try {
-        await apiRequest(item.op.path, {
-          method: item.op.method,
-          body: item.op.body !== undefined ? JSON.stringify(item.op.body) : undefined,
+        await apiRequest(item.path, {
+          method: item.method,
+          body: item.body !== undefined ? JSON.stringify(item.body) : undefined,
         });
         await removePending(item.id);
       } catch {

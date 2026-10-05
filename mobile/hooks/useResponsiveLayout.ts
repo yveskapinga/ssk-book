@@ -10,7 +10,7 @@ export function useResponsiveLayout() {
       width,
       height,
       isTabletDevice,
-      navRailWidth: width >= 1000 ? 240 : 200,
+      navRailWidth: width >= 1000 ? 260 : 220,
       horizontalPadding: isTabletDevice ? 28 : 16,
     };
   }, [width, height]);

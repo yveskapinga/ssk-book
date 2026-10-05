@@ -14,7 +14,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   return (
-    <Screen style={{ justifyContent: 'center', backgroundColor: colors.sidebar }}>
+    <Screen padTop padBottom style={{ justifyContent: 'center', backgroundColor: colors.sidebar }}>
       <View style={{ backgroundColor: colors.paper, borderRadius: 16, padding: 22 }}>
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
           <Image

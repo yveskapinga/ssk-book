@@ -105,6 +105,16 @@ final class LibraryController extends ApiController
         }
     }
 
+    #[Route('/api/books/{slug}/reading/pack', name: 'api_book_reading_pack', methods: ['GET'])]
+    public function readingPack(string $slug): JsonResponse
+    {
+        try {
+            return $this->success($this->reading->offlinePack($this->actor(), $slug));
+        } catch (\Throwable $exception) {
+            return $this->failure($exception);
+        }
+    }
+
     #[Route('/api/books/{slug}/passages/{id}', name: 'api_book_passage', methods: ['GET'])]
     public function passage(string $slug, string $id): JsonResponse
     {

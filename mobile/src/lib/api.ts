@@ -1,7 +1,9 @@
 import { cacheSnapshot, readSnapshot } from '@/src/lib/offline/db';
 import { clearSession, getToken } from '@/src/lib/storage';
 
-const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_MS = 15000;
+/** Questions / AI answers need embedding + generation. */
+export const LONG_REQUEST_TIMEOUT_MS = 90_000;
 
 export class ApiError extends Error {
   constructor(
@@ -14,8 +16,10 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiRequestOptions = RequestInit & { timeoutMs?: number };
+
 function baseUrl(): string {
-  return process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://ssk-book.solutic.app';
+  return process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://ssk-book.yabisoo.com';
 }
 
 let unauthorizedHandler: (() => void) | null = null;
@@ -38,34 +42,46 @@ function canSnapshot(path: string, method: string): boolean {
   );
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const { timeoutMs = FETCH_TIMEOUT_MS, signal: outerSignal, ...fetchOptions } = options;
+  const headers = new Headers(fetchOptions.headers);
   headers.set('Accept', 'application/json');
-  if (options.body && !(options.body instanceof FormData)) {
+  if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   const token = getToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const method = (options.method ?? 'GET').toUpperCase();
+  const method = (fetchOptions.method ?? 'GET').toUpperCase();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const onOuterAbort = () => controller.abort();
+  if (outerSignal) {
+    if (outerSignal.aborted) controller.abort();
+    else outerSignal.addEventListener('abort', onOuterAbort, { once: true });
+  }
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   let response: Response;
+  let aborted = false;
   try {
     response = await fetch(`${baseUrl()}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
-      signal: options.signal ?? controller.signal,
+      signal: controller.signal,
     });
-  } catch {
+  } catch (err) {
+    aborted = controller.signal.aborted;
     if (canSnapshot(path, method)) {
       const cached = await readSnapshot<T>(path);
       if (cached !== null) return cached;
     }
+    if (aborted && !outerSignal?.aborted) {
+      throw new ApiError('La requête a pris trop de temps. Réessayez.', 0, 'TIMEOUT');
+    }
     throw new ApiError('Impossible de joindre le serveur. Vérifiez votre connexion.', 0, 'NETWORK_ERROR');
   } finally {
     clearTimeout(timer);
+    outerSignal?.removeEventListener('abort', onOuterAbort);
   }
 
   if (response.status === 204) return undefined as T;

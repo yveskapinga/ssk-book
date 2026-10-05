@@ -15,7 +15,7 @@ export default function RegisterScreen() {
   const [busy, setBusy] = useState(false);
 
   return (
-    <Screen style={{ justifyContent: 'center' }}>
+    <Screen padTop padBottom style={{ justifyContent: 'center' }}>
       <Title>Inscription</Title>
       <Muted>Créez votre compte lecteur (mot de passe ≥ 10 caractères).</Muted>
       <Field placeholder="Nom affiché" value={displayName} onChangeText={setDisplayName} />

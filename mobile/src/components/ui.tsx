@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,18 +10,54 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts } from '@/src/lib/theme';
 
-export function Screen({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.screen, style]}>{children}</View>;
+export function Screen({
+  children,
+  style,
+  padTop = false,
+  padBottom = false,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  /** Add status-bar / notch inset (auth screens). App shell already insets top. */
+  padTop?: boolean;
+  padBottom?: boolean;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingTop: 16 + (padTop ? insets.top : 0),
+          paddingBottom: 16 + (padBottom ? insets.bottom : 0),
+          paddingLeft: 16 + insets.left,
+          paddingRight: 16 + insets.right,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function Title({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+  return (
+    <Text style={styles.title} allowFontScaling>
+      {children}
+    </Text>
+  );
 }
 
 export function Muted({ children }: { children: React.ReactNode }) {
-  return <Text style={styles.muted}>{children}</Text>;
+  return (
+    <Text style={styles.muted} allowFontScaling>
+      {children}
+    </Text>
+  );
 }
 
 export function Card({ children }: { children: React.ReactNode }) {
@@ -62,6 +99,7 @@ export function Button({
             variant === 'primary' && { color: colors.ink },
             variant !== 'primary' && { color: colors.accent },
           ]}
+          allowFontScaling
         >
           {label}
         </Text>
@@ -84,10 +122,11 @@ export function OnlineGate({ message }: { message: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper, padding: 16 },
+  screen: { flex: 1, backgroundColor: colors.paper },
   title: {
     fontFamily: fonts.displayBold,
     fontSize: 28,
+    lineHeight: 36,
     color: colors.ink,
     letterSpacing: -0.5,
     marginBottom: 8,
@@ -100,19 +139,33 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginBottom: 12,
+    overflow: 'visible',
   },
   btn: {
     minHeight: 48,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginTop: 10,
+    overflow: 'visible',
   },
   btnPrimary: { backgroundColor: colors.gold, borderWidth: 1, borderColor: colors.gold },
   btnSecondary: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.accent },
   btnGhost: { backgroundColor: 'transparent' },
-  btnText: { fontFamily: fonts.uiBold, fontSize: 15 },
+  btnText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    width: '100%',
+    flexShrink: 0,
+    ...Platform.select({
+      android: { includeFontPadding: false },
+      default: {},
+    }),
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.line,
@@ -123,5 +176,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.ui,
     color: colors.ink,
     marginBottom: 10,
+    ...Platform.select({
+      android: { includeFontPadding: false },
+      default: {},
+    }),
   },
 });

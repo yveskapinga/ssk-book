@@ -10,10 +10,11 @@
 
 ## Toujours offline (après bootstrap)
 
-- Lecture du livre déjà téléchargé (TOC + passages).
-- Progression de lecture (écrit local + file `pending`).
-- Favoris, notes, surlignages (écrit local + file).
-- Accueil / bibliothèque si cache présent.
+- Lecture du livre déjà téléchargé (TOC + **tous les passages** via `/api/books/{slug}/reading/pack`).
+- Navigation Précédent / Suivant / Sommaire sur le pack local (frontière de déverrouillage respectée).
+- Progression de lecture (écrit local + file `pending`, flush au retour online).
+- Favoris (POST mis en file hors ligne).
+- Accueil / bibliothèque / bookmarks / notes si cache présent.
 - Historique local des notifications reçues.
 
 ## Online only (gate claire)
@@ -22,10 +23,11 @@
 - Quiz (démarrage / soumission).
 - Enregistrement du token push Expo.
 - Flush de la file `pending`.
+- Affichage des figures IMAGE (URL authentifiée).
 
 ## Bootstrap 1er online
 
-Après login online : télécharger et persister `GET /api/library`, métadonnées livre, contenu de lecture (`/reading`). Ne jamais bloquer l’UI indéfiniment (timeouts).
+Après login online : télécharger et persister `GET /api/library`, **pack lecture complet** (`/reading/pack`), dashboard, bookmarks, notes. Ne jamais bloquer l’UI indéfiniment (timeouts).
 
 ## Hors scope mobile v1
 

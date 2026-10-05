@@ -37,6 +37,49 @@ final readonly class ReadingService
         ];
     }
 
+    public function offlinePack(User $user, string $slug): array
+    {
+        $book = $this->requirePublished($slug);
+        $versionId = $book['version_id'];
+        $rows = $this->books->publishedPassages($versionId);
+        if ([] === $rows) {
+            throw new DomainException('La lecture par passage n’est pas encore disponible pour ce livre.', 404);
+        }
+
+        $frontierRow = $this->reading->frontier($user->id, $versionId);
+        $allRead = null === $frontierRow;
+        $frontier = $frontierRow ?? $this->books->lastPassage($versionId);
+        if (null === $frontier) {
+            throw new DomainException('Aucun passage n’est disponible.', 404);
+        }
+
+        $passages = [];
+        foreach ($rows as $row) {
+            $passages[] = [
+                'id' => (string) $row['id'],
+                'position' => (int) $row['position'],
+                'page_number' => (int) $row['page_number'],
+                'kind' => (string) $row['kind'],
+                'body' => (string) $row['body'],
+                'chapter_title' => $row['chapter_title'] ?? null,
+                'chunk_id' => $row['chunk_id'] ?? null,
+                'figure_id' => $row['figure_id'] ?? null,
+            ];
+        }
+
+        return [
+            'slug' => $slug,
+            'title' => (string) ($book['title'] ?? $slug),
+            'versionId' => $versionId,
+            'toc' => $this->books->tableOfContents($versionId),
+            'frontierPassageId' => (string) $frontier['id'],
+            'frontierPosition' => (int) $frontier['position'],
+            'allRead' => $allRead,
+            'passageCount' => count($passages),
+            'passages' => $passages,
+        ];
+    }
+
     public function chunks(string $slug, int $page, int $limit, int $fromPage = 0): array
     {
         $book = $this->requirePublished($slug);

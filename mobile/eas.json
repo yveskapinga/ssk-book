@@ -9,20 +9,20 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.solutic.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.yabisoo.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.solutic.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.yabisoo.com"
       }
     },
     "production": {
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.solutic.app"
+        "EXPO_PUBLIC_API_BASE_URL": "https://ssk-book.yabisoo.com"
       }
     }
   },

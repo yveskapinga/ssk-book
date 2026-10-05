@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { apiRequest } from '@/src/lib/api';
 import { useAuth } from '@/src/lib/auth';
 import { readSnapshot } from '@/src/lib/offline/db';
@@ -8,32 +8,44 @@ import { Button, Card, Muted, Screen, Title } from '@/src/components/ui';
 import { colors, fonts } from '@/src/lib/theme';
 
 type Dash = {
-  reading_percent?: number;
-  book_title?: string;
-  last_page?: number;
+  stats?: {
+    reading_percent?: number | string;
+    bookmark_count?: number | string;
+    note_count?: number | string;
+    quiz_count?: number | string;
+    question_count?: number | string;
+  };
+  library?: { slug: string; title: string; page_count?: number | null }[];
 };
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const [dash, setDash] = useState<Dash | null>(null);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const res = await apiRequest<{ data: Dash }>('/api/me/dashboard');
-        setDash(res.data);
-      } catch {
-        const cached = await readSnapshot<{ data: Dash }>('/api/me/dashboard');
-        if (cached?.data) setDash(cached.data);
-      }
-    })();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void (async () => {
+        try {
+          const res = await apiRequest<{ data: Dash }>('/api/me/dashboard');
+          if (active) setDash(res.data);
+        } catch {
+          const cached = await readSnapshot<{ data: Dash }>('/api/me/dashboard');
+          if (active && cached?.data) setDash(cached.data);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
-  const pct = Number(dash?.reading_percent ?? 0);
+  const pct = Math.round(Number(dash?.stats?.reading_percent ?? 0));
+  const book = dash?.library?.[0];
 
   return (
     <Screen>
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <Title>Bonjour, {user?.displayName?.split(' ')[0] ?? 'lecteur'}</Title>
         <Muted>Lecture interactive du livre du SSK.</Muted>
 
@@ -48,8 +60,8 @@ export default function HomeScreen() {
           <Text style={{ color: colors.sidebarMuted, fontFamily: fonts.uiBold, fontSize: 12, letterSpacing: 1 }}>
             REPRENDRE
           </Text>
-          <Text style={{ color: '#fff', fontFamily: fonts.displayBold, fontSize: 22, marginVertical: 8 }}>
-            {dash?.book_title ?? 'SSK Book'}
+          <Text style={{ color: '#fff', fontFamily: fonts.displayBold, fontSize: 22, lineHeight: 28, marginVertical: 8 }}>
+            {book?.title ?? 'SSK Book'}
           </Text>
           <View style={{ height: 7, borderRadius: 99, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
             <View style={{ width: `${Math.min(100, pct)}%`, height: '100%', backgroundColor: colors.gold }} />

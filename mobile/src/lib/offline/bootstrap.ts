@@ -1,5 +1,6 @@
 import { apiRequest } from '@/src/lib/api';
-import { cacheBook, cacheSnapshot } from '@/src/lib/offline/db';
+import { cacheSnapshot } from '@/src/lib/offline/db';
+import { downloadOfflinePack } from '@/src/lib/offline/pack';
 
 type LibraryItem = { slug: string; title: string };
 
@@ -9,17 +10,26 @@ export async function bootstrapOnlinePack(): Promise<void> {
   const slug = library.data.items[0]?.slug;
   if (!slug) return;
 
-  const book = await apiRequest<{ data: unknown }>(`/api/books/${slug}`);
-  await cacheBook(`meta:${slug}`, book.data);
-  await cacheSnapshot(`/api/books/${slug}`, book);
-
-  const reading = await apiRequest<{ data: unknown }>(`/api/books/${slug}/reading`);
-  await cacheBook(`reading:${slug}`, reading.data);
-  await cacheSnapshot(`/api/books/${slug}/reading`, reading);
+  // Full offline reading pack (TOC + all passages + frontier).
+  await downloadOfflinePack(slug);
 
   try {
     const dash = await apiRequest<{ data: unknown }>('/api/me/dashboard');
     await cacheSnapshot('/api/me/dashboard', dash);
+  } catch {
+    /* optional */
+  }
+
+  try {
+    const bookmarks = await apiRequest<{ data: unknown }>('/api/me/bookmarks');
+    await cacheSnapshot('/api/me/bookmarks', bookmarks);
+  } catch {
+    /* optional */
+  }
+
+  try {
+    const notes = await apiRequest<{ data: unknown }>('/api/me/notes');
+    await cacheSnapshot('/api/me/notes', notes);
   } catch {
     /* optional */
   }

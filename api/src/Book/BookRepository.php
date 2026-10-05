@@ -285,6 +285,21 @@ SQL, ['version_id' => $versionId, 'id' => $id]);
         return false === $row ? null : $row;
     }
 
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function publishedPassages(string $versionId): array
+    {
+        return $this->connection->fetchAllAssociative(<<<'SQL'
+SELECT p.id, p.position, p.page_number, p.kind, p.body, p.figure_id, p.chunk_id, p.node_id,
+       n.title AS chapter_title
+FROM book_passages p
+LEFT JOIN book_nodes n ON n.id = p.node_id
+WHERE p.version_id = :version_id
+ORDER BY p.position
+SQL, ['version_id' => $versionId]);
+    }
+
     public function firstPassage(string $versionId): ?array
     {
         $row = $this->connection->fetchAssociative(

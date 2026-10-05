@@ -1,6 +1,7 @@
 import { Redirect, Tabs, router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/lib/auth';
 import { OfflineBanner } from '@/src/components/OfflineBanner';
 import { colors, fonts } from '@/src/lib/theme';
@@ -14,10 +15,10 @@ type TabDef = {
 };
 
 const tabs: TabDef[] = [
-  { name: 'index', title: 'Aperçu', icon: 'home-outline', href: '/' },
+  { name: 'index', title: 'Accueil', icon: 'home-outline', href: '/' },
   { name: 'reading', title: 'Lecture', icon: 'book-outline' },
   { name: 'quiz', title: 'Quiz', icon: 'help-circle-outline' },
-  { name: 'questions', title: 'Questions', icon: 'chatbubble-ellipses-outline' },
+  { name: 'questions', title: 'Q&R', icon: 'chatbubble-ellipses-outline' },
   { name: 'more', title: 'Plus', icon: 'menu-outline' },
 ];
 
@@ -37,21 +38,23 @@ export default function AppLayout() {
 
   if (layout.isTabletDevice) {
     return (
-      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: colors.paper }}>
+      <SafeAreaView style={{ flex: 1, flexDirection: 'row', backgroundColor: colors.paper }} edges={['top', 'left', 'bottom']}>
         <View
           style={{
             width: layout.navRailWidth,
             backgroundColor: colors.sidebar,
             paddingTop: 20,
-            paddingHorizontal: 12,
+            paddingHorizontal: 10,
+            overflow: 'visible',
           }}
         >
           <Text
             style={{
               fontFamily: fonts.displayBold,
-              fontSize: 24,
+              fontSize: 22,
+              lineHeight: 28,
               color: colors.sidebarText,
-              paddingHorizontal: 10,
+              paddingHorizontal: 8,
               marginBottom: 20,
             }}
           >
@@ -69,7 +72,7 @@ export default function AppLayout() {
                   alignItems: 'center',
                   gap: 10,
                   paddingVertical: 12,
-                  paddingHorizontal: 12,
+                  paddingHorizontal: 10,
                   borderRadius: 10,
                   marginBottom: 4,
                   backgroundColor: active ? colors.gold : 'transparent',
@@ -78,10 +81,14 @@ export default function AppLayout() {
                 <Ionicons name={tab.icon} size={20} color={active ? colors.ink : '#e7f0ff'} />
                 <Text
                   style={{
+                    flex: 1,
+                    flexShrink: 1,
                     fontFamily: fonts.uiBold,
                     color: active ? colors.ink : '#e7f0ff',
                     fontSize: 15,
+                    lineHeight: 20,
                   }}
+                  numberOfLines={1}
                 >
                   {tab.title}
                 </Text>
@@ -111,12 +118,12 @@ export default function AppLayout() {
             <Tabs.Screen name="notifications" options={{ href: null }} />
           </Tabs>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.paper }} edges={['top']}>
       <OfflineBanner />
       <Tabs
         screenOptions={{
@@ -124,14 +131,27 @@ export default function AppLayout() {
           tabBarActiveTintColor: colors.ink,
           tabBarInactiveTintColor: colors.muted,
           tabBarActiveBackgroundColor: colors.gold,
-          tabBarItemStyle: { borderRadius: 10, margin: 4 },
+          tabBarHideOnKeyboard: true,
+          tabBarItemStyle: {
+            borderRadius: 10,
+            marginHorizontal: 2,
+            marginVertical: 4,
+            paddingTop: 2,
+          },
           tabBarStyle: {
             backgroundColor: colors.panel,
             borderTopColor: colors.line,
-            height: 64,
-            paddingBottom: 6,
+            height: 70,
+            paddingTop: 4,
+            paddingBottom: 8,
           },
-          tabBarLabelStyle: { fontFamily: fonts.uiBold, fontSize: 11 },
+          tabBarLabelStyle: {
+            fontFamily: fonts.uiBold,
+            fontSize: 11,
+            lineHeight: 14,
+            marginBottom: 2,
+          },
+          tabBarIconStyle: { marginBottom: 0 },
         }}
       >
         {tabs.map((t) => (
@@ -140,7 +160,9 @@ export default function AppLayout() {
             name={t.name}
             options={{
               title: t.title,
+              tabBarLabel: t.title,
               tabBarIcon: ({ color, size }) => <Ionicons name={t.icon} size={size} color={color} />,
+              tabBarAccessibilityLabel: t.name === 'questions' ? 'Questions' : t.title,
             }}
           />
         ))}
@@ -148,6 +170,6 @@ export default function AppLayout() {
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="notifications" options={{ href: null }} />
       </Tabs>
-    </View>
+    </SafeAreaView>
   );
 }
