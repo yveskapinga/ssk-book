@@ -30,10 +30,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## Play Store (AAB)
 
-1. Créer un projet EAS : `npx eas init` (renseigner `extra.eas.projectId` dans `app.json`).
-2. Mettre l’URL API prod dans `eas.json` → `production.env.EXPO_PUBLIC_API_BASE_URL`.
+1. Projet EAS déjà lié (`extra.eas.projectId` dans `app.json`).
+2. URL API prod dans `eas.json` → `production.env.EXPO_PUBLIC_API_BASE_URL`.
 3. `npx eas build -p android --profile production`
 4. Soumettre : `npx eas submit -p android --profile production` (compte Play Console requis).
+5. **Légal (obligatoire)** : voir [`../docs/product/play-store-legal.md`](../docs/product/play-store-legal.md)
+   - Confidentialité : https://ssk-book.yabisoo.com/legal/privacy
+   - Conditions : https://ssk-book.yabisoo.com/legal/terms
+   - Suppression compte : https://ssk-book.yabisoo.com/legal/delete-account
+6. Captures : `store/play-screenshots/`
 
 ## Package
 

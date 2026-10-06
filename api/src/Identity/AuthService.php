@@ -69,6 +69,64 @@ final readonly class AuthService
         });
     }
 
+    /**
+     * Suppression / anonymisation du compte (exigence Google Play pour les apps avec comptes).
+     * Les données personnelles sont purgées ; le compte est suspendu et anonymisé.
+     */
+    public function deleteAccount(User $user): void
+    {
+        if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
+            throw new DomainException(
+                'Les comptes administrateur ne peuvent pas être supprimés depuis l’application. Contactez le support.',
+                409,
+            );
+        }
+
+        $this->connection->transactional(function () use ($user): void {
+            $this->tokens->revokeAllForUser($user->id);
+
+            $this->connection->executeStatement(
+                <<<'SQL'
+DELETE FROM message_sources
+WHERE message_id IN (
+  SELECT m.id FROM conversation_messages m
+  JOIN conversations c ON c.id = m.conversation_id
+  WHERE c.user_id = :id
+)
+SQL,
+                ['id' => $user->id],
+            );
+            $this->connection->executeStatement(
+                'DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id = :id)',
+                ['id' => $user->id],
+            );
+            $this->connection->delete('conversations', ['user_id' => $user->id]);
+
+            foreach ([
+                'bookmarks',
+                'highlights',
+                'reader_notes',
+                'reading_progress',
+                'reading_passage_progress',
+                'quiz_attempts',
+                'user_push_tokens',
+            ] as $table) {
+                $this->connection->delete($table, ['user_id' => $user->id]);
+            }
+
+            $anonEmail = 'deleted.'.$user->id.'@invalid.local';
+            $this->connection->update('app_users', [
+                'email' => $anonEmail,
+                'display_name' => 'Compte supprimé',
+                'password_hash' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
+                'status' => 'SUSPENDED',
+                'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:sP'),
+            ], ['id' => $user->id]);
+
+            $this->audit->append($user->id, 'USER_ACCOUNT_DELETED', 'USER', $user->id);
+        });
+    }
+
     private function issueToken(User $user): array
     {
         $rawToken = bin2hex(random_bytes(32));

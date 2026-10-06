@@ -78,4 +78,25 @@ final class AuthController extends ApiController
             return $this->failure($exception);
         }
     }
+
+    #[Route('/delete-account', name: 'delete_account', methods: ['POST'])]
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        try {
+            $user = $this->getUser();
+            if (!$user instanceof User) {
+                throw new \RuntimeException('Authenticated user is unavailable.');
+            }
+            $payload = $request->toArray();
+            $confirm = (string) ($payload['confirm'] ?? '');
+            if ('DELETE' !== strtoupper(trim($confirm))) {
+                throw new \App\Shared\DomainException('Confirmez la suppression en envoyant confirm: "DELETE".');
+            }
+            $this->authService->deleteAccount($user);
+
+            return new JsonResponse(['data' => ['deleted' => true]], 200);
+        } catch (\Throwable $exception) {
+            return $this->failure($exception);
+        }
+    }
 }

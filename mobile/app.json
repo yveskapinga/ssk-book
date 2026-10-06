@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "app.ssk.book",
+      "versionCode": 2,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#0b4aa2",

@@ -731,3 +731,17 @@ html.has-install-prompt body { padding-top: var(--install-prompt-offset); }
   .reader-topbar { padding: 8px 10px; }
   .reader-passage { font-size: 1.18rem; }
 }
+
+.legal-page { max-width: 760px; padding-bottom: 96px; }
+.legal-page h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); }
+.legal-updated { color: var(--muted); margin: 0 0 28px; }
+.legal-article { display: grid; gap: 22px; }
+.legal-article section h2 { margin: 0 0 8px; font-size: 1.15rem; }
+.legal-article p, .legal-article li { color: var(--ink-soft); line-height: 1.7; }
+.legal-article ul, .legal-article ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+.legal-related { margin-top: 36px; color: var(--muted); }
+.legal-related a { color: var(--accent); font-weight: 700; }
+.legal-cta { margin-top: 28px; }
+.public-nav { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-left: auto; }
+.public-nav a { color: var(--muted); font-weight: 650; }
+.public-nav a:hover { color: var(--ink); }
