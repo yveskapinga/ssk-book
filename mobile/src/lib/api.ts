@@ -30,6 +30,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 
 function canSnapshot(path: string, method: string): boolean {
   if (method !== 'GET') return false;
+  if (path.includes('/reading/pack')) return false;
   return (
     path.startsWith('/api/library') ||
     path.startsWith('/api/me/dashboard') ||
@@ -109,7 +110,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (canSnapshot(path, method) && body) {
-    await cacheSnapshot(path, body);
+    try {
+      await cacheSnapshot(path, body);
+    } catch {
+      /* snapshots are optional; a large payload must not fail the request */
+    }
   }
 
   return body as T;

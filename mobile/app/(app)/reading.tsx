@@ -67,27 +67,30 @@ export default function ReadingScreen() {
     [applyPack, online],
   );
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        let bookSlug = '';
-        if (online) {
-          const lib = await apiRequest<{ data: { items: { slug: string }[] } }>('/api/library');
-          bookSlug = lib.data.items[0]?.slug ?? '';
-        } else {
-          const lib = await readSnapshot<{ data: { items: { slug: string }[] } }>('/api/library');
-          bookSlug = lib?.data.items[0]?.slug ?? '';
-        }
-        if (!bookSlug) {
-          setError('Aucun livre publié.');
-          return;
-        }
-        await ensurePack(bookSlug);
-      } catch {
-        setError('Impossible de préparer la lecture.');
+  const loadReading = useCallback(async () => {
+    try {
+      let bookSlug = '';
+      if (online) {
+        const lib = await apiRequest<{ data: { items: { slug: string }[] } }>('/api/library');
+        bookSlug = lib.data?.items?.[0]?.slug ?? '';
+      } else {
+        const lib = await readSnapshot<{ data: { items: { slug: string }[] } }>('/api/library');
+        bookSlug = lib?.data?.items?.[0]?.slug ?? '';
       }
-    })();
+      if (!bookSlug) {
+        setError('Aucun livre publié.');
+        return;
+      }
+      await ensurePack(bookSlug);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      setError(message || 'Impossible de préparer la lecture.');
+    }
   }, [ensurePack, online]);
+
+  useEffect(() => {
+    void loadReading();
+  }, [loadReading]);
 
   const goToPassage = async (passageId: string) => {
     if (!pack || !state) return;
@@ -202,8 +205,9 @@ export default function ReadingScreen() {
       ) : null}
 
       {error ? (
-        <View style={{ paddingHorizontal: 16 }}>
+        <View style={{ paddingHorizontal: 16, gap: 8 }}>
           <Muted>{error}</Muted>
+          <Button label="Réessayer" variant="secondary" onPress={() => void loadReading()} />
         </View>
       ) : null}
       {note ? (

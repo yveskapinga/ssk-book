@@ -1,7 +1,7 @@
 import { Redirect, Tabs, router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/lib/auth';
 import { OfflineBanner } from '@/src/components/OfflineBanner';
 import { colors, fonts } from '@/src/lib/theme';
@@ -26,6 +26,8 @@ export default function AppLayout() {
   const { user, ready } = useAuth();
   const layout = useResponsiveLayout();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const tabBarBottom = Math.max(insets.bottom, 8);
 
   if (!ready) {
     return (
@@ -141,9 +143,9 @@ export default function AppLayout() {
           tabBarStyle: {
             backgroundColor: colors.panel,
             borderTopColor: colors.line,
-            height: 70,
+            height: 62 + tabBarBottom,
             paddingTop: 4,
-            paddingBottom: 8,
+            paddingBottom: tabBarBottom,
           },
           tabBarLabelStyle: {
             fontFamily: fonts.uiBold,

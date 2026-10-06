@@ -95,15 +95,22 @@ export async function downloadOfflinePack(
     `/api/books/${slug}/reading/pack`,
     { timeoutMs: LONG_REQUEST_TIMEOUT_MS },
   );
+  if (!res.data?.passages) {
+    throw new Error('Le pack de lecture est incomplet (aucun passage).');
+  }
   const pack: OfflinePack = { ...res.data, downloadedAt: Date.now() };
-  await saveOfflinePack(pack, options);
-  await cacheSnapshot(`/api/books/${slug}`, {
-    data: {
-      book: { slug: pack.slug, title: pack.title, version_id: pack.versionId },
-      toc: pack.toc,
-      passageCount: pack.passageCount,
-    },
-  });
+  try {
+    await saveOfflinePack(pack, options);
+    await cacheSnapshot(`/api/books/${slug}`, {
+      data: {
+        book: { slug: pack.slug, title: pack.title, version_id: pack.versionId },
+        toc: pack.toc,
+        passageCount: pack.passageCount,
+      },
+    });
+  } catch {
+    /* Keep the pack in memory even if disk persist fails. */
+  }
   return pack;
 }
 

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getBookValue, putBookValue } from '@/src/lib/offline/bookStore';
 
 const PREFIX = 'ssk.kv.';
 const PENDING_KEY = 'ssk.pending';
@@ -39,10 +40,12 @@ export async function readSnapshot<T>(key: string): Promise<T | null> {
 }
 
 export async function cacheBook(key: string, value: unknown): Promise<void> {
-  await put('book', key, value);
+  await putBookValue(`book:${key}`, value);
 }
 
 export async function readBook<T>(key: string): Promise<T | null> {
+  const fromSqlite = await getBookValue<T>(`book:${key}`);
+  if (fromSqlite !== null) return fromSqlite;
   return get<T>('book', key);
 }
 

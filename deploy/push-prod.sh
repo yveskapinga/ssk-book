@@ -205,6 +205,8 @@ out = Path('${REMOTE_AIGW}/.env')
 out.write_text(
     f\"AIGW_API_KEY={vals.get('AIGW_API_KEY','dev_only_change_me')}\\n\"
     f\"GEMINI_API_KEY={vals.get('GEMINI_API_KEY','')}\\n\"
+    f\"DEEPSEEK_API_KEY={vals.get('DEEPSEEK_API_KEY','')}\\n\"
+    f\"DEEPSEEK_GENERATION_MODEL={vals.get('DEEPSEEK_GENERATION_MODEL','deepseek-flash')}\\n\"
     f\"OLLAMA_BASE_URL=http://ollama:11434\\n\"
 )
 out.chmod(0o600)

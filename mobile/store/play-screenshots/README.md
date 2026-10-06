@@ -14,8 +14,13 @@ Dossier : `mobile/store/play-screenshots/`
 | `phone-05-plus.png` | Capture téléphone |
 | `phone-06-suivi.png` | Capture téléphone |
 | `phone-07-profil.png` | Capture téléphone |
+| `tablet7-01-accueil.png` … `tablet7-07-profil.png` | Tablette 7" (**1200 × 1920**) |
+| `tablet10-01-accueil.png` … `tablet10-07-profil.png` | Tablette 10" (**1600 × 2560**) |
 
 Format téléphone : **1080 × 2400** (OK pour Play).
+Format 7" : plus petit côté ≥ 600 px — **1200 × 1920**.
+Format 10" : plus petit côté ≥ 1080 px — **1600 × 2560**.
+PNG 24 bits, ratio entre 9:16 et 16:9. Play demande au moins **2 captures** par taille.
 
 ## À savoir
 
