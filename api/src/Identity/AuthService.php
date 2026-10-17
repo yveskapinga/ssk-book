@@ -1,0 +1,152 @@
+<?php
+
+namespace App\Identity;
+
+use App\Audit\AuditRepository;
+use App\Shared\DomainException;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Uid\Uuid;
+
+final readonly class AuthService
+{
+    public function __construct(
+        private Connection $connection,
+        private UserRepository $users,
+        private AccessTokenRepository $tokens,
+        private AuditRepository $audit,
+        private UserPasswordHasherInterface $passwordHasher,
+    ) {
+    }
+
+    public function register(string $email, string $displayName, string $plainPassword, array $roles = ['ROLE_USER']): array
+    {
+        $email = mb_strtolower(trim($email));
+        $displayName = trim($displayName);
+        $this->validateCredentials($email, $displayName, $plainPassword);
+
+        try {
+            return $this->connection->transactional(function () use ($email, $displayName, $plainPassword, $roles): array {
+                $id = Uuid::v7()->toRfc4122();
+                $roles = array_values(array_unique([...$roles, 'ROLE_USER']));
+                $prototype = new User($id, $email, $displayName, '', $roles, 'ACTIVE');
+                $user = $this->users->create($id, $email, $displayName, $this->passwordHasher->hashPassword($prototype, $plainPassword), $roles);
+                $this->audit->append($id, 'USER_REGISTERED', 'USER', $id);
+
+                return $this->issueToken($user);
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw new DomainException('Cette adresse e-mail est déjà utilisée.', 409);
+        }
+    }
+
+    public function login(string $email, string $plainPassword): array
+    {
+        $email = mb_strtolower(trim($email));
+        $user = $this->users->findByEmail($email);
+
+        if (null === $user || !$this->passwordHasher->isPasswordValid($user, $plainPassword)) {
+            throw new DomainException('Identifiants invalides.', 401);
+        }
+        if ('ACTIVE' !== $user->status) {
+            throw new DomainException('Ce compte est suspendu.', 403);
+        }
+
+        return $this->connection->transactional(function () use ($user): array {
+            $this->users->markLogin($user->id);
+            $this->audit->append($user->id, 'USER_LOGGED_IN', 'USER', $user->id);
+
+            return $this->issueToken($user);
+        });
+    }
+
+    public function logout(string $rawToken, User $user): void
+    {
+        $this->connection->transactional(function () use ($rawToken, $user): void {
+            $this->tokens->revoke(hash('sha256', $rawToken));
+            $this->audit->append($user->id, 'USER_LOGGED_OUT', 'USER', $user->id);
+        });
+    }
+
+    /**
+     * Suppression / anonymisation du compte (exigence Google Play pour les apps avec comptes).
+     * Les données personnelles sont purgées ; le compte est suspendu et anonymisé.
+     */
+    public function deleteAccount(User $user): void
+    {
+        if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
+            throw new DomainException(
+                'Les comptes administrateur ne peuvent pas être supprimés depuis l’application. Contactez le support.',
+                409,
+            );
+        }
+
+        $this->connection->transactional(function () use ($user): void {
+            $this->tokens->revokeAllForUser($user->id);
+
+            $this->connection->executeStatement(
+                <<<'SQL'
+DELETE FROM message_sources
+WHERE message_id IN (
+  SELECT m.id FROM conversation_messages m
+  JOIN conversations c ON c.id = m.conversation_id
+  WHERE c.user_id = :id
+)
+SQL,
+                ['id' => $user->id],
+            );
+            $this->connection->executeStatement(
+                'DELETE FROM conversation_messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id = :id)',
+                ['id' => $user->id],
+            );
+            $this->connection->delete('conversations', ['user_id' => $user->id]);
+
+            foreach ([
+                'bookmarks',
+                'highlights',
+                'reader_notes',
+                'reading_progress',
+                'reading_passage_progress',
+                'quiz_attempts',
+                'user_push_tokens',
+            ] as $table) {
+                $this->connection->delete($table, ['user_id' => $user->id]);
+            }
+
+            $anonEmail = 'deleted.'.$user->id.'@invalid.local';
+            $this->connection->update('app_users', [
+                'email' => $anonEmail,
+                'display_name' => 'Compte supprimé',
+                'password_hash' => password_hash(bin2hex(random_bytes(24)), PASSWORD_DEFAULT),
+                'status' => 'SUSPENDED',
+                'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:sP'),
+            ], ['id' => $user->id]);
+
+            $this->audit->append($user->id, 'USER_ACCOUNT_DELETED', 'USER', $user->id);
+        });
+    }
+
+    private function issueToken(User $user): array
+    {
+        $rawToken = bin2hex(random_bytes(32));
+        // Jeton durable : fin uniquement via logout / révocation / compte suspendu.
+        $expiresAt = new \DateTimeImmutable('+100 years');
+        $this->tokens->create(Uuid::v7()->toRfc4122(), $user->id, hash('sha256', $rawToken), $expiresAt);
+
+        return ['token' => $rawToken, 'expiresAt' => $expiresAt->format(DATE_ATOM), 'user' => $user->toArray()];
+    }
+
+    private function validateCredentials(string $email, string $displayName, string $password): void
+    {
+        if (false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new DomainException('Adresse e-mail invalide.');
+        }
+        if (mb_strlen($displayName) < 2 || mb_strlen($displayName) > 120) {
+            throw new DomainException('Le nom doit contenir entre 2 et 120 caractères.');
+        }
+        if (mb_strlen($password) < 10) {
+            throw new DomainException('Le mot de passe doit contenir au moins 10 caractères.');
+        }
+    }
+}

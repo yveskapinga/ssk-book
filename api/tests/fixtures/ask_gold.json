@@ -1,0 +1,26 @@
+[
+  {
+    "id": "author-children",
+    "question": "L'auteur du livre avait combien d'enfants ?",
+    "expected_pages": [7, 8],
+    "must_include_any": ["mes chers enfants", "Marc Daniel Kadima Bakenge Muipata", "Blessing"]
+  },
+  {
+    "id": "prophet-children",
+    "question": "Combien d'enfants avait le prophète KADIMA ?",
+    "expected_pages": [39, 40, 41, 42],
+    "must_include_any": ["Anastasie", "David Bakenge", "William Kadima", "Naomi"]
+  },
+  {
+    "id": "luse-child",
+    "question": "est ce que le livre mentionne une fille Luxe du Prophète KADIMA?",
+    "expected_pages": [40, 195, 196, 197, 198, 199, 200, 201],
+    "must_include_any": ["Luse", "luse"]
+  },
+  {
+    "id": "inaugural-worship",
+    "question": "Quand a eu lieu le premier culte inaugurale de vendredi?",
+    "expected_pages": [70, 71, 72, 73, 74, 75, 76, 80, 81, 82, 83, 84, 85, 90, 91, 92, 93, 94, 95, 100, 101, 102, 103, 104, 105],
+    "must_include_any": ["culte", "vendredi", "inaugur"]
+  }
+]

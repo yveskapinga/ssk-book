@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Local Poppler binary — PM2 does not inherit the docker group.
+set -euo pipefail
+ROOT="/var/lib/.local-state/yves/.local/poppler"
+export LD_LIBRARY_PATH="${ROOT}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+exec "${ROOT}/bin/pdftohtml" "$@"

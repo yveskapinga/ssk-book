@@ -1,0 +1,37 @@
+# Build from repository root:
+#   docker build -f api/Dockerfile.prod -t ssk-book-api .
+FROM composer:2 AS vendor
+
+RUN apk add --no-cache git unzip
+
+WORKDIR /app
+COPY api/composer.json api/composer.lock api/symfony.lock ./
+RUN composer config audit.block-insecure false \
+    && composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+
+COPY api/ ./
+RUN composer dump-autoload --optimize --classmap-authoritative \
+    && chmod +x bin/console
+
+FROM php:8.3-cli-alpine
+
+RUN apk add --no-cache icu-dev libpq-dev poppler-utils curl \
+    && docker-php-ext-install intl pdo_pgsql
+
+COPY api/docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+COPY deploy/php.prod.ini /usr/local/etc/php/conf.d/ssk-book.ini
+
+WORKDIR /app
+COPY --from=vendor /app /app
+COPY deploy/router.php /app/router.php
+
+RUN mkdir -p /app/var/books /app/var/cache /app/var/log \
+    && printf 'APP_ENV=prod\n' > /app/.env \
+    && chown -R www-data:www-data /app/var /app/.env
+
+ENV APP_ENV=prod
+ENV APP_DEBUG=0
+EXPOSE 8080
+
+USER www-data
+CMD ["sh", "-c", "php bin/console cache:warmup --env=prod --no-debug || true; php -S 0.0.0.0:8080 -t public /app/router.php"]
