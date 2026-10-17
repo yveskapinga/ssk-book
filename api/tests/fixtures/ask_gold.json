@@ -8,7 +8,7 @@
   {
     "id": "prophet-children",
     "question": "Combien d'enfants avait le prophète KADIMA ?",
-    "expected_pages": [39, 40, 41, 42],
+    "expected_pages": [38, 39, 40, 41, 42, 43, 50, 52, 53, 54, 55],
     "must_include_any": ["Anastasie", "David Bakenge", "William Kadima", "Naomi"]
   },
   {
