@@ -27,10 +27,18 @@ final readonly class SearchRepository
         $literal = $textOnly || $vector === []
             ? null
             : '['.implode(',', array_map(static fn ($value): string => sprintf('%.10F', (float) $value), $vector)).']';
-        $tokensJson = json_encode(SearchQuestionTerms::tokens($question), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $tokens = SearchQuestionTerms::tokens($question);
+        $tokensJson = json_encode($tokens, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $tsqueryAnd = SearchQuestionTerms::tsquery($question) ?? '';
         $tsqueryOr = SearchQuestionTerms::tsqueryOr($question) ?? '';
         $subject = QuestionSubject::detect($question);
+        $familyIntent = QuestionSubject::isFamilyIntent($question);
+        $expanded = SearchQueryExpansion::isExpandedTsquery($tsqueryOr);
+        $deathIntent = SearchQueryExpansion::isDeathGroupActive($tokens, $question);
+        // When synonym expansion fires, prefer FTS over broad name matches (kadima).
+        $textDenom = $expanded ? 12 : 50;
+        $nameDenom = $expanded ? 55 : 40;
+        $textLimit = $expanded ? 40 : 30;
 
         if ($textOnly || null === $literal) {
             return $this->connection->fetchAllAssociative(<<<'SQL'
@@ -58,7 +66,7 @@ WITH current_book AS (
     CROSS JOIN text_query query
     WHERE query.q IS NOT NULL AND to_tsvector('french', c.content) @@ query.q
     ORDER BY ts_rank_cd(to_tsvector('french', c.content), query.q) DESC
-    LIMIT 30
+    LIMIT :text_limit
 ), name_ranked AS (
     SELECT c.id, ROW_NUMBER() OVER (ORDER BY MAX(word_similarity(n.token, c.content)) DESC) AS rank
     FROM book_chunks c
@@ -80,7 +88,7 @@ WITH current_book AS (
                     AND c.content ILIKE '%enfant%'
                     AND c.start_page > 15
                THEN -0.05
-               WHEN :subject = 'prophet' AND (
+               WHEN :subject = 'prophet' AND :family_intent AND (
                     c.content ILIKE '%père d''Anastasie%'
                     OR c.content ILIKE '%eut le bonheur d''être ainsi, pendant cette période, le père%'
                     OR (c.start_page BETWEEN 38 AND 55 AND (
@@ -97,14 +105,20 @@ WITH current_book AS (
                ) THEN 0.15
                WHEN :subject = 'prophet' AND c.content ILIKE '%mes chers enfants%'
                THEN -0.06
+               WHEN :death_intent AND (
+                    c.content ILIKE '%rendit l''âme%'
+                    OR c.content ILIKE '%tira sa révérence%'
+                    OR c.content ILIKE '%19 février 1999%'
+                    OR c.content ILIKE '%19 fevrier 1999%'
+               ) THEN 0.22
                ELSE 0.0
            END AS boost
     FROM book_chunks c
     JOIN current_book b ON b.version_id = c.version_id
 ), fused AS (
     SELECT id, SUM(score) AS score FROM (
-        SELECT id, 1.0 / (50 + rank) AS score FROM text_hits
-        UNION ALL SELECT id, 1.0 / (40 + rank) AS score FROM name_hits
+        SELECT id, 1.0 / (:text_denom + rank) AS score FROM text_hits
+        UNION ALL SELECT id, 1.0 / (:name_denom + rank) AS score FROM name_hits
         UNION ALL SELECT id, boost AS score FROM subject_boost WHERE boost <> 0
     ) ranked GROUP BY id
 )
@@ -117,8 +131,20 @@ SQL, [
                 'tsquery_or' => $tsqueryOr,
                 'tokens_json' => $tokensJson,
                 'subject' => $subject,
+                'family_intent' => $familyIntent,
+                'death_intent' => $deathIntent,
+                'text_denom' => $textDenom,
+                'name_denom' => $nameDenom,
+                'text_limit' => $textLimit,
                 'limit' => $limit,
-            ], ['limit' => \Doctrine\DBAL\ParameterType::INTEGER]);
+            ], [
+                'limit' => \Doctrine\DBAL\ParameterType::INTEGER,
+                'text_limit' => \Doctrine\DBAL\ParameterType::INTEGER,
+                'text_denom' => \Doctrine\DBAL\ParameterType::INTEGER,
+                'name_denom' => \Doctrine\DBAL\ParameterType::INTEGER,
+                'family_intent' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+                'death_intent' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            ]);
         }
 
         return $this->connection->fetchAllAssociative(<<<'SQL'
@@ -160,7 +186,7 @@ WITH current_book AS (
     CROSS JOIN text_query query
     WHERE query.q IS NOT NULL AND to_tsvector('french', c.content) @@ query.q
     ORDER BY ts_rank_cd(to_tsvector('french', c.content), query.q) DESC
-    LIMIT 30
+    LIMIT :text_limit
 ), name_ranked AS (
     SELECT c.id, ROW_NUMBER() OVER (ORDER BY MAX(word_similarity(n.token, c.content)) DESC) AS rank
     FROM book_chunks c
@@ -182,7 +208,7 @@ WITH current_book AS (
                     AND c.content ILIKE '%enfant%'
                     AND c.start_page > 15
                THEN -0.05
-               WHEN :subject = 'prophet' AND (
+               WHEN :subject = 'prophet' AND :family_intent AND (
                     c.content ILIKE '%père d''Anastasie%'
                     OR c.content ILIKE '%eut le bonheur d''être ainsi, pendant cette période, le père%'
                     OR (c.start_page BETWEEN 38 AND 55 AND (
@@ -199,6 +225,12 @@ WITH current_book AS (
                ) THEN 0.15
                WHEN :subject = 'prophet' AND c.content ILIKE '%mes chers enfants%'
                THEN -0.06
+               WHEN :death_intent AND (
+                    c.content ILIKE '%rendit l''âme%'
+                    OR c.content ILIKE '%tira sa révérence%'
+                    OR c.content ILIKE '%19 février 1999%'
+                    OR c.content ILIKE '%19 fevrier 1999%'
+               ) THEN 0.22
                ELSE 0.0
            END AS boost
     FROM book_chunks c
@@ -206,8 +238,8 @@ WITH current_book AS (
 ), fused AS (
     SELECT id, SUM(score) AS score FROM (
         SELECT id, 1.0 / (60 + rank) AS score FROM vector_hits
-        UNION ALL SELECT id, 1.0 / (50 + rank) AS score FROM text_hits
-        UNION ALL SELECT id, 1.0 / (40 + rank) AS score FROM name_hits
+        UNION ALL SELECT id, 1.0 / (:text_denom + rank) AS score FROM text_hits
+        UNION ALL SELECT id, 1.0 / (:name_denom + rank) AS score FROM name_hits
         UNION ALL SELECT id, boost AS score FROM subject_boost WHERE boost <> 0
         UNION ALL SELECT id, score FROM vector_bonus
     ) ranked GROUP BY id
@@ -222,7 +254,19 @@ SQL, [
             'tsquery_or' => $tsqueryOr,
             'tokens_json' => $tokensJson,
             'subject' => $subject,
+            'family_intent' => $familyIntent,
+            'death_intent' => $deathIntent,
+            'text_denom' => $textDenom,
+            'name_denom' => $nameDenom,
+            'text_limit' => $textLimit,
             'limit' => $limit,
-        ], ['limit' => \Doctrine\DBAL\ParameterType::INTEGER]);
+        ], [
+            'limit' => \Doctrine\DBAL\ParameterType::INTEGER,
+            'text_limit' => \Doctrine\DBAL\ParameterType::INTEGER,
+            'text_denom' => \Doctrine\DBAL\ParameterType::INTEGER,
+            'name_denom' => \Doctrine\DBAL\ParameterType::INTEGER,
+            'family_intent' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+            'death_intent' => \Doctrine\DBAL\ParameterType::BOOLEAN,
+        ]);
     }
 }

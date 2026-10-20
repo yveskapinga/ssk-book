@@ -22,5 +22,17 @@
     "question": "Quand a eu lieu le premier culte inaugurale de vendredi?",
     "expected_pages": [70, 71, 72, 73, 74, 75, 76, 80, 81, 82, 83, 84, 85, 90, 91, 92, 93, 94, 95, 100, 101, 102, 103, 104, 105],
     "must_include_any": ["culte", "vendredi", "inaugur"]
+  },
+  {
+    "id": "prophet-death-date",
+    "question": "Quelle est la date du décès du prophète Kadima ?",
+    "expected_pages": [168, 189],
+    "must_include_any": ["19 février 1999", "Johannesburg", "rendit l'âme", "tira sa révérence"]
+  },
+  {
+    "id": "prophet-death-date-rendu-ame",
+    "question": "Le prophète kadima a rendu l'âme à quelle date?",
+    "expected_pages": [168, 189],
+    "must_include_any": ["19 février 1999", "Johannesburg", "rendit l'âme", "tira sa révérence"]
   }
 ]

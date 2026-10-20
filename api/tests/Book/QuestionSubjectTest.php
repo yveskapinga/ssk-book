@@ -34,4 +34,16 @@ final class QuestionSubjectTest extends TestCase
             QuestionSubject::detect("Que dit l'auteur à propos du prophète KADIMA ?")
         );
     }
+
+    public function testFamilyIntentTrueForChildrenQuestions(): void
+    {
+        self::assertTrue(QuestionSubject::isFamilyIntent('Combien d\'enfants avait le prophète KADIMA ?'));
+        self::assertTrue(QuestionSubject::isFamilyIntent('arbre généalogique de la famille'));
+    }
+
+    public function testFamilyIntentFalseForDeathDateQuestion(): void
+    {
+        self::assertFalse(QuestionSubject::isFamilyIntent('Quelle est la date du décès du prophète Kadima ?'));
+        self::assertFalse(QuestionSubject::isFamilyIntent('Le prophète kadima a rendu l\'âme à quelle date?'));
+    }
 }

@@ -45,4 +45,24 @@ final class QuestionSubject
 
         return self::OTHER;
     }
+
+    /**
+     * True when the question is about family / children / genealogy.
+     * Used to scope the prophet family page boost (avoid boosting Anastasie
+     * pages for death-date or other non-family prophet questions).
+     */
+    public static function isFamilyIntent(string $question): bool
+    {
+        $folded = strtr(mb_strtolower($question), [
+            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'à' => 'a', 'â' => 'a', 'î' => 'i', 'ï' => 'i',
+            'ô' => 'o', 'ù' => 'u', 'û' => 'u', 'ç' => 'c',
+            '’' => "'",
+        ]);
+
+        return (bool) preg_match(
+            '/\b(enfant|enfants|fils|fille|filles|pere|mere|epouse|epoux|mariage|genealogie|genealogique|arbre|famille|frere|soeur|naquirent|naquit)\b/u',
+            $folded
+        );
+    }
 }

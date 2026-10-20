@@ -25,6 +25,8 @@ final class SearchQuestionTerms
     ];
 
     /**
+     * Tokens originaux (name matching + AND FTS). Pas d'expansion synonymes.
+     *
      * @return list<string>
      */
     public static function tokens(string $question): array
@@ -57,7 +59,7 @@ final class SearchQuestionTerms
     }
 
     /**
-     * Requête plein texte : uniquement les mots porteurs, pour éviter
+     * Requête plein texte : uniquement les mots porteurs originaux, pour éviter
      * qu’un « quand a eu lieu » empêche de trouver le passage daté.
      */
     public static function tsquery(string $question): ?string
@@ -70,14 +72,12 @@ final class SearchQuestionTerms
         return implode(' & ', $tokens);
     }
 
-    /** Variante OR quand le AND ne matche aucun chunk. */
+    /**
+     * Fallback FTS : AND de groupes synonymes (OR internes), sans exiger
+     * les tokens mous (« date »). Sans expansion → OR plat des tokens.
+     */
     public static function tsqueryOr(string $question): ?string
     {
-        $tokens = self::tokens($question);
-        if ([] === $tokens) {
-            return null;
-        }
-
-        return implode(' | ', $tokens);
+        return SearchQueryExpansion::tsqueryExpanded(self::tokens($question), $question);
     }
 }

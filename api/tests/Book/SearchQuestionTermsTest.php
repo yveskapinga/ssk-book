@@ -36,4 +36,35 @@ final class SearchQuestionTermsTest extends TestCase
     {
         self::assertContains('luse', SearchQuestionTerms::tokens('une fille nommée Luse Kadima Luse'));
     }
+
+    public function testDeathDateAndStaysOnOriginalTokens(): void
+    {
+        $question = 'Quelle est la date du décès du prophète Kadima ?';
+        $tokens = SearchQuestionTerms::tokens($question);
+
+        self::assertContains('date', $tokens);
+        self::assertContains('décès', $tokens);
+        self::assertNotContains('âme', $tokens);
+        self::assertSame(
+            SearchQuestionTerms::tsquery($question),
+            implode(' & ', $tokens)
+        );
+    }
+
+    public function testDeathDateOrExpandsSynonymsAsAndGroups(): void
+    {
+        $or = SearchQuestionTerms::tsqueryOr('Quelle est la date du décès du prophète Kadima ?');
+
+        self::assertNotNull($or);
+        self::assertStringContainsString('décès', $or);
+        self::assertStringContainsString('mort', $or);
+        self::assertStringContainsString('âme', $or);
+        self::assertStringContainsString('révérence', $or);
+        self::assertStringContainsString('&', $or);
+        self::assertStringNotContainsString('date &', $or);
+        self::assertTrue(
+            str_contains($or, 'kadima') || str_contains($or, 'prophète'),
+            'expanded query should keep prophet entity terms'
+        );
+    }
 }
